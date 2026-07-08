@@ -1,0 +1,8 @@
+{
+  "name": "Remix: Badri Enterprises",
+  "description": "Premium Plywood, Laminates, Doors, Veneers \u0026 Interior decorative solutions in Bangalore. Built with trust and quality.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
