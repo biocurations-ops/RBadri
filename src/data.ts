@@ -209,8 +209,8 @@ export const brandsData: Brand[] = [
     id: 'brand-3',
     name: 'AK Apple Ply',
     tagline: 'Highly trusted plywood sheets for modern durable carpentry',
-    image: 'https://images.unsplash.com/photo-1507089947368-19c1da9775ae?auto=format&fit=crop&q=80&w=600',
-    logo: '/src/assets/images/ak_apple_ply_logo_1783424040408.jpg'
+    image: 'https://drive.google.com/thumbnail?sz=w1000&id=1VHBDamwh2kKuhVuhzYdQFZ5V48s4LvjO',
+    logo: 'https://drive.google.com/thumbnail?sz=w1000&id=1VHBDamwh2kKuhVuhzYdQFZ5V48s4LvjO'
   },
   {
     id: 'brand-4',

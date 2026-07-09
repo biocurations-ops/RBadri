@@ -96,9 +96,13 @@ export default function App() {
               migrated = true;
               return { ...b, logo: '/src/assets/images/centuryply_logo_1783423169711.jpg' };
             }
-            if (b.id === 'brand-3' && !b.logo.includes('ak_apple_ply_logo')) {
+            if (b.id === 'brand-3' && !b.logo.includes('drive.google.com')) {
               migrated = true;
-              return { ...b, logo: '/src/assets/images/ak_apple_ply_logo_1783424040408.jpg' };
+              return { 
+                ...b, 
+                logo: 'https://drive.google.com/thumbnail?sz=w1000&id=1VHBDamwh2kKuhVuhzYdQFZ5V48s4LvjO',
+                image: 'https://drive.google.com/thumbnail?sz=w1000&id=1VHBDamwh2kKuhVuhzYdQFZ5V48s4LvjO'
+              };
             }
             if (b.id === 'brand-4' && !b.logo.includes('imfa_ply_logo')) {
               migrated = true;
