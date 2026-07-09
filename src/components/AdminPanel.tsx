@@ -12,6 +12,7 @@ import { initialMaterials, defaultWebsiteSettings } from '../data';
 import { compressAndResizeImage } from '../utils';
 import { initAuth, googleSignIn, logoutGoogle } from '../utils/firebase';
 import { findSpreadsheetByName, createSpreadsheet, fetchExistingLeadIds, appendLeadsToSpreadsheet, overwriteAllLeadsInSpreadsheet } from '../utils/googleSheets';
+import { fetchDriveFolderFiles } from '../utils/googleDrive';
 
 interface AdminPanelProps {
   inquiries: Inquiry[];
@@ -167,6 +168,111 @@ export default function AdminPanel({
   const [sheetSyncError, setSheetSyncError] = useState('');
   const [sheetSyncSuccess, setSheetSyncSuccess] = useState('');
   const [unsyncedCount, setUnsyncedCount] = useState<number | null>(null);
+
+  // Google Drive Sync States
+  const [isSyncingDrive, setIsSyncingDrive] = useState(false);
+  const [driveFiles, setDriveFiles] = useState<any[]>([]);
+  const [driveSyncError, setDriveSyncError] = useState('');
+  const [driveSyncSuccess, setDriveSyncSuccess] = useState('');
+  const [driveSelectedFiles, setDriveSelectedFiles] = useState<Record<string, boolean>>({});
+  const [driveFileMappings, setDriveFileMappings] = useState<Record<string, string>>({});
+
+  const autoMapFilesToProducts = (files: any[]) => {
+    const mappings: Record<string, string> = {};
+    const selected: Record<string, boolean> = {};
+
+    files.forEach(file => {
+      const name = file.name.toLowerCase();
+      let matchedProductId = '';
+
+      if (name.includes('marine') || name.includes('bwp') || name.includes('710')) {
+        matchedProductId = 'ply-bwp-gold';
+      } else if (name.includes('mr') || name.includes('commercial') || name.includes('303')) {
+        matchedProductId = 'ply-mr-silver';
+      } else if (name.includes('fire') || name.includes('retardant') || name.includes('5509')) {
+        matchedProductId = 'ply-fire-retardant';
+      } else if (name.includes('pine') || name.includes('blockboard') || name.includes('1659') || name.includes('board')) {
+        matchedProductId = 'pine-board-premium';
+      } else if (name.includes('flush') || name.includes('door') || name.includes('2202')) {
+        matchedProductId = 'door-flush-solid';
+      } else if (name.includes('mdf')) {
+        matchedProductId = 'mdf-premium-density';
+      } else if (name.includes('hmr') && !name.includes('hdhmr')) {
+        matchedProductId = 'hmr-moisture-block';
+      } else if (name.includes('hdhmr')) {
+        matchedProductId = 'hdhmr-supreme-grade';
+      } else if (name.includes('teak') || name.includes('veneer')) {
+        matchedProductId = 'veneer-teak-gold';
+      }
+
+      if (matchedProductId) {
+        mappings[file.id] = matchedProductId;
+        selected[file.id] = true;
+      } else {
+        mappings[file.id] = products[0]?.id || '';
+        selected[file.id] = false;
+      }
+    });
+
+    setDriveFileMappings(mappings);
+    setDriveSelectedFiles(selected);
+  };
+
+  const handleFetchDriveFiles = async () => {
+    setIsSyncingDrive(true);
+    setDriveSyncError('');
+    setDriveSyncSuccess('');
+    try {
+      const folderId = '1kAGkfn3Y2nSgLPLRh-2r_JuxEHkIQIv0';
+      const files = await fetchDriveFolderFiles(googleToken!, folderId);
+      setDriveFiles(files);
+      if (files.length === 0) {
+        setDriveSyncError('No files found in the Google Drive folder. Make sure files are added to the folder.');
+      } else {
+        autoMapFilesToProducts(files);
+        setDriveSyncSuccess(`Successfully loaded ${files.length} images from Google Drive! Review the mapped products and apply below.`);
+      }
+    } catch (err: any) {
+      console.error('Drive listing failed:', err);
+      setDriveSyncError(err.message || 'Failed to list Google Drive files. Please ensure you are logged in to Google.');
+    } finally {
+      setIsSyncingDrive(false);
+    }
+  };
+
+  const handleApplyDriveImages = () => {
+    setDriveSyncError('');
+    setDriveSyncSuccess('');
+    
+    const selectedIds = Object.keys(driveSelectedFiles).filter(id => driveSelectedFiles[id]);
+    if (selectedIds.length === 0) {
+      setDriveSyncError('Please select at least one Google Drive image to apply.');
+      return;
+    }
+
+    let successCount = 0;
+    selectedIds.forEach(fileId => {
+      const targetProductId = driveFileMappings[fileId];
+      const file = driveFiles.find(f => f.id === fileId);
+      if (targetProductId && file) {
+        const product = products.find(p => p.id === targetProductId);
+        if (product) {
+          onUpdateProduct({
+            ...product,
+            image: file.imageUrl
+          });
+          successCount++;
+        }
+      }
+    });
+
+    if (successCount > 0) {
+      setDriveSyncSuccess(`Successfully applied ${successCount} Google Drive images to the product showcase catalog!`);
+      setDriveFiles([]);
+    } else {
+      setDriveSyncError('No products were updated.');
+    }
+  };
 
   // Initialize Auth
   useEffect(() => {
@@ -1794,6 +1900,150 @@ export default function AdminPanel({
         {/* TAB 3: PRODUCT SUMMARY BLOCKS CONFIG (8 BOXES / DYNAMIC UPLOADS) */}
         {activeTab === 'products' && (
           <div className="mt-8 space-y-6">
+
+            {/* Google Drive Image Auto-Poster */}
+            <div className="bg-white rounded-2xl p-6 border border-neutral-200 shadow-3xs">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-5 border-b border-neutral-100">
+                <div className="flex items-start gap-3.5">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-500/10 text-blue-600 border border-blue-500/15">
+                    <UploadCloud className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-neutral-900 flex items-center gap-2">
+                      <span>Google Drive Image Auto-Poster</span>
+                      {googleToken ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[10px] font-bold text-emerald-800">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          Connected
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-neutral-150 px-2.5 py-0.5 text-[10px] font-bold text-neutral-600">
+                          Disconnected
+                        </span>
+                      )}
+                    </h3>
+                    <p className="text-xs text-neutral-500 mt-1 leading-relaxed">
+                      Download and sync product showcase catalog images directly from your Google Drive folder: <a href="https://drive.google.com/drive/folders/1kAGkfn3Y2nSgLPLRh-2r_JuxEHkIQIv0" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-semibold">Open Folder</a>
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex shrink-0 gap-2 items-center">
+                  {!googleToken ? (
+                    <button
+                      onClick={handleConnectSheets}
+                      className="inline-flex items-center gap-2 rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white px-4 py-2.5 text-xs font-black transition shadow-sm cursor-pointer"
+                    >
+                      <svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" className="h-4 w-4">
+                        <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path>
+                        <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path>
+                        <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path>
+                        <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path>
+                      </svg>
+                      <span>Connect Google Account</span>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleFetchDriveFiles}
+                      disabled={isSyncingDrive}
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 text-xs font-black transition shadow-sm cursor-pointer disabled:opacity-50"
+                    >
+                      <UploadCloud className={`h-4 w-4 ${isSyncingDrive ? 'animate-bounce' : ''}`} />
+                      <span>{isSyncingDrive ? 'Fetching Images...' : 'Fetch Folder Images'}</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Status and Action feedback alerts */}
+              {(driveSyncSuccess || driveSyncError) && (
+                <div className="mt-4">
+                  {driveSyncSuccess && (
+                    <div className="rounded-xl bg-emerald-50 border border-emerald-100 p-3.5 text-xs font-semibold text-emerald-800 flex items-center gap-2">
+                      <CheckCircle2 className="h-4.5 w-4.5 text-emerald-600 shrink-0" />
+                      <span>{driveSyncSuccess}</span>
+                    </div>
+                  )}
+                  {driveSyncError && (
+                    <div className="rounded-xl bg-red-50 border border-red-100 p-3.5 text-xs font-semibold text-red-800 flex items-center gap-2">
+                      <span>⚠️ {driveSyncError}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Retrieved Files Grid & Auto-Mapping Preview */}
+              {driveFiles.length > 0 && (
+                <div className="mt-6 border-t border-neutral-100 pt-6 space-y-4">
+                  <h4 className="text-xs font-black text-neutral-700 uppercase tracking-wider">
+                    Verify Mapped Catalog Products
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {driveFiles.map((file) => {
+                      const currentSelected = driveSelectedFiles[file.id] || false;
+                      const mappedProductId = driveFileMappings[file.id] || '';
+                      return (
+                        <div key={file.id} className={`border rounded-xl p-3 bg-neutral-50 transition-all ${currentSelected ? 'border-blue-500 ring-2 ring-blue-500/10 bg-white' : 'border-neutral-200'}`}>
+                          <div className="relative aspect-video rounded-lg overflow-hidden bg-neutral-100 border border-neutral-200">
+                            <img 
+                              src={file.imageUrl} 
+                              alt={file.name} 
+                              className="object-cover w-full h-full"
+                              referrerPolicy="no-referrer"
+                            />
+                            <div className="absolute top-2 left-2">
+                              <input 
+                                type="checkbox" 
+                                checked={currentSelected}
+                                onChange={(e) => {
+                                  setDriveSelectedFiles(prev => ({
+                                    ...prev,
+                                    [file.id]: e.target.checked
+                                  }));
+                                }}
+                                className="h-4.5 w-4.5 rounded border-neutral-300 text-blue-600 focus:ring-blue-500"
+                              />
+                            </div>
+                          </div>
+                          <div className="mt-2.5">
+                            <p className="text-xs font-bold text-neutral-800 truncate" title={file.name}>
+                              {file.name}
+                            </p>
+                            <label className="block text-[10px] font-bold text-neutral-500 uppercase mt-2 mb-1">
+                              Assign to Product:
+                            </label>
+                            <select
+                              value={mappedProductId}
+                              onChange={(e) => {
+                                setDriveFileMappings(prev => ({
+                                  ...prev,
+                                  [file.id]: e.target.value
+                                }));
+                              }}
+                              className="w-full text-xs bg-white border border-neutral-300 rounded-lg py-1 px-1.5 focus:border-blue-500 focus:outline-none"
+                            >
+                              {products.map(p => (
+                                <option key={p.id} value={p.id}>{p.title}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="flex justify-end pt-4 border-t border-neutral-100">
+                    <button
+                      onClick={handleApplyDriveImages}
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 text-xs font-black transition shadow-sm cursor-pointer uppercase tracking-wider"
+                    >
+                      <Check className="h-4 w-4" />
+                      <span>Apply & Auto-Post to Columns</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
             
             {/* Top Product Controls Bar */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-neutral-50 p-6 rounded-xl border border-neutral-200 gap-4">
