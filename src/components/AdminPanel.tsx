@@ -768,6 +768,7 @@ export default function AdminPanel({
   const [brandEditName, setBrandEditName] = useState('');
   const [brandEditTagline, setBrandEditTagline] = useState('');
   const [brandEditLogo, setBrandEditLogo] = useState('');
+  const [brandEditImage, setBrandEditImage] = useState('');
 
   // Specific product editing lists
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
@@ -1948,9 +1949,9 @@ export default function AdminPanel({
                             />
                           </div>
 
-                          <div className="pt-2 border-t border-dashed border-neutral-200">
-                            <label className="bg-amber-500 hover:bg-amber-600 text-neutral-950 rounded-lg px-3 py-2 text-[10px] font-black text-center cursor-pointer block transition shadow-sm w-full">
-                              <span>Upload Clean Logo File</span>
+                          <div className="pt-2 border-t border-dashed border-neutral-200 flex gap-2">
+                            <label className="flex-1 bg-amber-500 hover:bg-amber-600 text-neutral-950 rounded-lg px-3 py-2 text-[10px] font-black text-center cursor-pointer block transition shadow-sm">
+                              <span>Upload Logo</span>
                               <input
                                 type="file"
                                 accept="image/*"
@@ -1961,6 +1962,41 @@ export default function AdminPanel({
                                     try {
                                       const base64 = await compressAndResizeImage(file, 300, 150, 0.85);
                                       setBrandEditLogo(base64);
+                                    } catch (err) {
+                                      console.error(err);
+                                    }
+                                  }
+                                }}
+                              />
+                            </label>
+                          </div>
+
+                          <div className="pt-2 border-t border-neutral-200">
+                            <label className="block text-[10px] uppercase font-black text-neutral-500 mb-1">
+                              Box Background Image URL
+                            </label>
+                            <input
+                              type="text"
+                              value={brandEditImage}
+                              onChange={(e) => setBrandEditImage(e.target.value)}
+                              className="w-full bg-neutral-25 border border-neutral-300 text-neutral-800 rounded-lg px-2.5 py-2 text-xs font-mono outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-500"
+                              placeholder="https://images.site/background.jpg"
+                            />
+                          </div>
+
+                          <div className="pt-2 border-t border-dashed border-neutral-200 flex gap-2">
+                            <label className="flex-1 bg-neutral-800 hover:bg-neutral-755 text-white rounded-lg px-3 py-2 text-[10px] font-black text-center cursor-pointer block transition shadow-sm border border-neutral-700">
+                              <span>Upload Background Photo</span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={async (e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    try {
+                                      const base64 = await compressAndResizeImage(file, 800, 600, 0.85);
+                                      setBrandEditImage(base64);
                                     } catch (err) {
                                       console.error(err);
                                     }
@@ -1981,7 +2017,8 @@ export default function AdminPanel({
                           
                           <div className="flex flex-col gap-1 text-[9px] text-neutral-500 bg-neutral-50 p-2 rounded-lg truncate text-left">
                             <div className="truncate"><span className="font-bold uppercase">Brand Logo:</span> {brand.logo ? 'Custom Logo' : 'Fallback Text'}</div>
-                            <div className="text-neutral-400 text-[8px]">Displaying centered on an elegant, solid black container.</div>
+                            <div className="truncate"><span className="font-bold uppercase">Box BG Image:</span> {brand.image ? 'Custom Background' : 'None'}</div>
+                            <div className="text-neutral-400 text-[8px]">Displaying centered logo with box background on home page.</div>
                           </div>
                         </div>
                       )}
@@ -1996,7 +2033,7 @@ export default function AdminPanel({
                                 id: brand.id,
                                 name: brandEditName,
                                 tagline: brandEditTagline,
-                                image: brand.image,
+                                image: brandEditImage,
                                 logo: brandEditLogo
                               });
                               setEditingBrandId(null);
@@ -2021,6 +2058,7 @@ export default function AdminPanel({
                             setBrandEditName(brand.name);
                             setBrandEditTagline(brand.tagline);
                             setBrandEditLogo(brand.logo || '');
+                            setBrandEditImage(brand.image || '');
                           }}
                           className="flex-1 bg-neutral-900 hover:bg-neutral-850 text-white font-bold text-xs py-2 rounded-lg transition text-center shadow-xs cursor-pointer flex items-center justify-center gap-1"
                         >
