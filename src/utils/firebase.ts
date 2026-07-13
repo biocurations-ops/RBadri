@@ -16,6 +16,8 @@ export const auth = getAuth(app);
 export const provider = new GoogleAuthProvider();
 provider.addScope('https://www.googleapis.com/auth/spreadsheets');
 provider.addScope('https://www.googleapis.com/auth/drive.file');
+provider.addScope('https://www.googleapis.com/auth/drive.readonly');
+provider.addScope('https://www.googleapis.com/auth/drive.metadata.readonly');
 
 let cachedAccessToken: string | null = null;
 let isSigningIn = false;

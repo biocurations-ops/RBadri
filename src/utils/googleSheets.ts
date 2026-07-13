@@ -23,7 +23,16 @@ export async function findSpreadsheetByName(accessToken: string, name: string): 
     if (!res.ok) {
       const errText = await res.text();
       console.error('findSpreadsheetByName HTTP error:', errText);
-      throw new Error(`Failed to search Google Drive: ${res.statusText}`);
+      let errorMsg = `Failed to search Google Drive: ${res.statusText}`;
+      try {
+        const parsed = JSON.parse(errText);
+        if (parsed.error && parsed.error.message) {
+          errorMsg = parsed.error.message;
+        }
+      } catch (e) {
+        // Not JSON
+      }
+      throw new Error(errorMsg);
     }
 
     const data = await res.json();
@@ -65,7 +74,16 @@ export async function createSpreadsheet(accessToken: string, name: string): Prom
     if (!createRes.ok) {
       const errText = await createRes.text();
       console.error('createSpreadsheet HTTP error:', errText);
-      throw new Error(`Failed to create spreadsheet: ${createRes.statusText}`);
+      let errorMsg = `Failed to create spreadsheet: ${createRes.statusText}`;
+      try {
+        const parsed = JSON.parse(errText);
+        if (parsed.error && parsed.error.message) {
+          errorMsg = parsed.error.message;
+        }
+      } catch (e) {
+        // Not JSON
+      }
+      throw new Error(errorMsg);
     }
 
     const spreadsheet = await createRes.json();
@@ -153,7 +171,16 @@ export async function fetchExistingLeadIds(accessToken: string, spreadsheetId: s
     if (!res.ok) {
       const errText = await res.text();
       console.error('fetchExistingLeadIds HTTP error:', errText);
-      throw new Error(`Failed to fetch cell values: ${res.statusText}`);
+      let errorMsg = `Failed to fetch cell values: ${res.statusText}`;
+      try {
+        const parsed = JSON.parse(errText);
+        if (parsed.error && parsed.error.message) {
+          errorMsg = parsed.error.message;
+        }
+      } catch (e) {
+        // Not JSON
+      }
+      throw new Error(errorMsg);
     }
 
     const data = await res.json();

@@ -434,6 +434,93 @@ export default function AdminPanel({
     );
   };
 
+  const renderSyncError = (errorMsg: string, type: 'sheet' | 'drive') => {
+    if (!errorMsg) return null;
+
+    const lower = errorMsg.toLowerCase();
+    const isPopupBlocked = lower.includes('popup');
+    const isApiDisabled = lower.includes('disabled') || lower.includes('has not been used') || lower.includes('not enabled') || lower.includes('enable');
+    const isPermissionDenied = lower.includes('permission_denied') || lower.includes('insufficient permission') || lower.includes('forbidden') || lower.includes('403');
+
+    // Extract any HTTP URL inside the error message to offer a quick click-to-fix action
+    const urlRegex = /(https?:\/\/[^\s"'()]+)/g;
+    const urls = errorMsg.match(urlRegex);
+    const actionUrl = urls && urls.length > 0 ? urls[0] : null;
+
+    let title = '⚠️ Connection Error';
+    let subtitle = '';
+    
+    if (isPopupBlocked) {
+      title = '⚠️ Sign In Blocked by Browser';
+    } else if (isApiDisabled) {
+      title = `⚠️ Google ${type === 'sheet' ? 'Sheets' : 'Drive'} API Disabled`;
+      subtitle = `The Google ${type === 'sheet' ? 'Sheets' : 'Drive'} API is not enabled in your Google Cloud Project. It must be enabled to create spreadsheets and list files.`;
+    } else if (isPermissionDenied) {
+      title = '⚠️ Insufficient Permissions';
+      subtitle = 'Your Google account has authenticated, but did not authorize the specific scopes requested. Please log out and sign in again, ensuring you check the permissions to modify spreadsheets and view Drive files.';
+    }
+
+    return (
+      <div className="rounded-xl bg-red-50 border border-red-100 p-4 text-xs text-red-800 space-y-3 shadow-xs">
+        <div className="flex items-center gap-2 font-bold text-red-900">
+          <span>{title}</span>
+        </div>
+        
+        <div className="font-mono bg-red-100/60 p-2 rounded text-[11px] leading-relaxed break-words border border-red-200/40">
+          {errorMsg}
+        </div>
+
+        {subtitle && (
+          <p className="text-red-700 leading-normal font-semibold">
+            {subtitle}
+          </p>
+        )}
+
+        {/* If Google API disabled URL is present, show a big action link */}
+        {actionUrl && (
+          <div className="pt-1.5 flex flex-wrap gap-2">
+            <a
+              href={actionUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-red-800 hover:bg-red-900 text-white px-3.5 py-1.5 text-[11px] font-extrabold transition shadow-xs cursor-pointer uppercase tracking-wider"
+            >
+              <ExternalLink className="h-3.5 w-3.5 animate-pulse" />
+              <span>Enable Google {type === 'sheet' ? 'Sheets' : 'Drive'} API</span>
+            </a>
+          </div>
+        )}
+
+        {/* Popup blocked details */}
+        {isPopupBlocked && (
+          <div className="space-y-2 border-t border-red-200/50 pt-2.5">
+            <p className="font-semibold text-red-900">
+              The browser blocked the sign-in popup because this app is running inside a preview iframe.
+            </p>
+            <ul className="list-disc pl-4 space-y-1 text-red-700">
+              <li>
+                <strong>Option A (Recommended):</strong> Click the button below to open the application in a new tab, then try connecting there without iframe security constraints.
+              </li>
+              <li>
+                <strong>Option B:</strong> Check your browser address bar's right corner for a blocked-popup icon (like 🔒 or 🗗), click it, and select "Always allow popups from this site".
+              </li>
+            </ul>
+            <div className="pt-1">
+              <button
+                type="button"
+                onClick={() => window.open(window.location.href, '_blank')}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-red-800 hover:bg-red-900 text-white px-3 py-1.5 text-[11px] font-bold transition shadow-xs cursor-pointer"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                <span>Open App in New Tab</span>
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   // SMS & Email Notification settings state
   const [ownerPhone, setOwnerPhone] = useState('');
   const [ownerEmail, setOwnerEmail] = useState('badrienterprises313@gmail.com');
@@ -1429,39 +1516,7 @@ export default function AdminPanel({
                       <span>{sheetSyncSuccess}</span>
                     </div>
                   )}
-                  {sheetSyncError && (
-                    <div className="rounded-xl bg-red-50 border border-red-100 p-4 text-xs text-red-800 space-y-3">
-                      <div className="flex items-center gap-2 font-bold text-red-900">
-                        <span>⚠️ Sign In Blocked:</span>
-                        <span className="font-mono bg-red-100 px-1.5 py-0.5 rounded text-[11px]">{sheetSyncError}</span>
-                      </div>
-                      {sheetSyncError.toLowerCase().includes('popup') && (
-                        <div className="space-y-2 border-t border-red-200/50 pt-2.5">
-                          <p className="font-semibold text-red-900">
-                            The browser blocked the sign-in popup because this app is running inside a preview iframe.
-                          </p>
-                          <ul className="list-disc pl-4 space-y-1 text-red-700">
-                            <li>
-                              <strong>Option A (Recommended):</strong> Click the button below to open the application in a new tab, then try connecting there without iframe security constraints.
-                            </li>
-                            <li>
-                              <strong>Option B:</strong> Check your browser address bar's right corner for a blocked-popup icon (like 🔒 or 🗗), click it, and select "Always allow popups from this site".
-                            </li>
-                          </ul>
-                          <div className="pt-1">
-                            <button
-                              type="button"
-                              onClick={() => window.open(window.location.href, '_blank')}
-                              className="inline-flex items-center gap-1.5 rounded-lg bg-red-800 hover:bg-red-900 text-white px-3 py-1.5 text-[11px] font-bold transition shadow-xs cursor-pointer"
-                            >
-                              <ExternalLink className="h-3.5 w-3.5" />
-                              <span>Open App in New Tab</span>
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                  {sheetSyncError && renderSyncError(sheetSyncError, 'sheet')}
                 </div>
               )}
 
@@ -2049,39 +2104,7 @@ export default function AdminPanel({
                       <span>{driveSyncSuccess}</span>
                     </div>
                   )}
-                  {driveSyncError && (
-                    <div className="rounded-xl bg-red-50 border border-red-100 p-4 text-xs text-red-800 space-y-3">
-                      <div className="flex items-center gap-2 font-bold text-red-900">
-                        <span>⚠️ Sign In Blocked:</span>
-                        <span className="font-mono bg-red-100 px-1.5 py-0.5 rounded text-[11px]">{driveSyncError}</span>
-                      </div>
-                      {driveSyncError.toLowerCase().includes('popup') && (
-                        <div className="space-y-2 border-t border-red-200/50 pt-2.5">
-                          <p className="font-semibold text-red-900">
-                            The browser blocked the sign-in popup because this app is running inside a preview iframe.
-                          </p>
-                          <ul className="list-disc pl-4 space-y-1 text-red-700">
-                            <li>
-                              <strong>Option A (Recommended):</strong> Click the button below to open the application in a new tab, then try connecting there without iframe security constraints.
-                            </li>
-                            <li>
-                              <strong>Option B:</strong> Check your browser address bar's right corner for a blocked-popup icon (like 🔒 or 🗗), click it, and select "Always allow popups from this site".
-                            </li>
-                          </ul>
-                          <div className="pt-1">
-                            <button
-                              type="button"
-                              onClick={() => window.open(window.location.href, '_blank')}
-                              className="inline-flex items-center gap-1.5 rounded-lg bg-red-800 hover:bg-red-900 text-white px-3 py-1.5 text-[11px] font-bold transition shadow-xs cursor-pointer"
-                            >
-                              <ExternalLink className="h-3.5 w-3.5" />
-                              <span>Open App in New Tab</span>
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                  {driveSyncError && renderSyncError(driveSyncError, 'drive')}
                 </div>
               )}
 
