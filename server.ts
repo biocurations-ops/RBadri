@@ -259,6 +259,29 @@ app.post('/api/verify-otp', (req, res) => {
   }
 });
 
+// API Route: Secure Admin Password Login Validation
+app.post('/api/admin-login', (req, res) => {
+  try {
+    const { password } = req.body;
+    if (!password) {
+      return res.status(400).json({ success: false, error: 'Password is required.' });
+    }
+
+    const cleanPassword = password.trim();
+    const serverAdminPassword = (process.env.ADMIN_PASSWORD || 'BAdri888e').trim();
+
+    if (cleanPassword === serverAdminPassword) {
+      return res.json({ success: true, message: 'Admin authenticated successfully.' });
+    } else {
+      return res.status(401).json({ success: false, error: 'Incorrect password key. Access denied.' });
+    }
+  } catch (error: any) {
+    console.error('[API ADMIN LOGIN FAILURE]', error);
+    return res.status(500).json({ success: false, error: 'Internal server error during authentication.' });
+  }
+});
+
+
 // === CONFIGURABLE EMAIL & SMS DESTINATION ROUTINES ===
 const SETTINGS_FILE_PATH = path.join(process.cwd(), 'owner-settings.json');
 
