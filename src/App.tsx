@@ -74,20 +74,17 @@ export default function App() {
 
     // Load brand box configurations
     const savedBrands = localStorage.getItem('badri_brands_data_v3');
+    let loadedBrands = brandsData;
     if (savedBrands) {
       try {
         let parsed = JSON.parse(savedBrands);
-        if (!Array.isArray(parsed) || parsed.length < 7) {
-          setBrands(brandsData);
-          localStorage.setItem('badri_brands_data_v3', JSON.stringify(brandsData));
-        } else {
+        if (Array.isArray(parsed) && parsed.length >= 7) {
           let migrated = false;
           parsed = parsed.map((b: Brand) => {
             if (b.image && b.image.includes('photo-1541123437800-1bb1317badc2')) {
               migrated = true;
               return { ...b, image: 'https://images.unsplash.com/photo-1588854337236-6889d631faa8?auto=format&fit=crop&q=80&w=600' };
             }
-            // Migrate logo to new asset path if it's still the old online image link
             if (b.id === 'brand-1' && !b.logo.includes('greenply_logo')) {
               migrated = true;
               return { ...b, logo: '/src/assets/images/greenply_logo_1783424028897.jpg' };
@@ -125,20 +122,17 @@ export default function App() {
           if (migrated) {
             localStorage.setItem('badri_brands_data_v3', JSON.stringify(parsed));
           }
-          setBrands(parsed);
+          loadedBrands = parsed;
         }
       } catch (e) {
         console.error('Error parsing stored brands:', e);
-        setBrands(brandsData);
-        localStorage.setItem('badri_brands_data_v3', JSON.stringify(brandsData));
       }
-    } else {
-      setBrands(brandsData);
-      localStorage.setItem('badri_brands_data_v3', JSON.stringify(brandsData));
     }
+    setBrands(loadedBrands);
 
-    // Load custom dynamic product catalog listing (keeps exactly 8 by default)
+    // Load custom dynamic product catalog listing
     const savedProducts = localStorage.getItem('badri_products_data_v3');
+    let loadedProducts = productsData;
     if (savedProducts) {
       try {
         let parsed = JSON.parse(savedProducts);
@@ -155,15 +149,12 @@ export default function App() {
           return p;
         });
 
-        // Migration logic for Fire Retardant and Plywood videos
         const hasFireRetardant = parsed.some((p: Product) => p.id === 'ply-fire-retardant');
         const hasVideos = parsed.some((p: Product) => !!p.video);
         if (!hasFireRetardant || !hasVideos) {
           migrated = true;
-          // Add missing products like Fire Retardant
           const missing = productsData.filter(d => !parsed.some((p: Product) => p.id === d.id));
           parsed = [...parsed, ...missing];
-          // Attach default video attributes to existing items where applicable
           parsed = parsed.map((p: Product) => {
             const fresh = productsData.find(d => d.id === p.id);
             if (fresh && fresh.video && !p.video) {
@@ -176,16 +167,12 @@ export default function App() {
         if (migrated) {
           localStorage.setItem('badri_products_data_v3', JSON.stringify(parsed));
         }
-        setProducts(parsed);
+        loadedProducts = parsed;
       } catch (e) {
         console.error('Error parsing stored products:', e);
-        setProducts(productsData);
-        localStorage.setItem('badri_products_data_v3', JSON.stringify(productsData));
       }
-    } else {
-      setProducts(productsData);
-      localStorage.setItem('badri_products_data_v3', JSON.stringify(productsData));
     }
+    setProducts(loadedProducts);
 
     // Load admin login logs
     const savedLogs = localStorage.getItem('badri_admin_login_logs');
@@ -199,20 +186,17 @@ export default function App() {
 
     // Load materials list
     const savedMaterials = localStorage.getItem('badri_materials_list');
+    let loadedMaterials = initialMaterials;
     if (savedMaterials) {
       try {
-        setMaterials(JSON.parse(savedMaterials));
+        loadedMaterials = JSON.parse(savedMaterials);
       } catch (e) {
         console.error('Error parsing stored materials:', e);
-        setMaterials(initialMaterials);
-        localStorage.setItem('badri_materials_list', JSON.stringify(initialMaterials));
       }
-    } else {
-      setMaterials(initialMaterials);
-      localStorage.setItem('badri_materials_list', JSON.stringify(initialMaterials));
     }
+    setMaterials(loadedMaterials);
 
-    // Load customizable website settings locally first to avoid flicker
+    // Load customizable website settings locally first
     const savedSettings = localStorage.getItem('badri_website_settings');
     if (savedSettings) {
       try {
@@ -224,7 +208,31 @@ export default function App() {
       setWebsiteSettings(defaultWebsiteSettings);
     }
 
-    // Then, fetch fresh values from server to keep everything updated with what's saved on disk
+    // Load FAQs
+    const savedFaqs = localStorage.getItem('badri_faqs_list');
+    let loadedFaqs = faqsData;
+    if (savedFaqs) {
+      try {
+        loadedFaqs = JSON.parse(savedFaqs);
+      } catch (e) {
+        console.error('Error parsing FAQs:', e);
+      }
+    }
+    setFaqs(loadedFaqs);
+
+    // Load customer reviews
+    const savedReviews = localStorage.getItem('badri_customer_reviews_v1');
+    let loadedReviews = INITIAL_REVIEWS;
+    if (savedReviews) {
+      try {
+        loadedReviews = JSON.parse(savedReviews);
+      } catch (e) {
+        console.error('Error parsing reviews:', e);
+      }
+    }
+    setReviews(loadedReviews);
+
+    // SERVER-SIDE LOAD & SEED FALLBACKS FOR SHARED PERSISTENCE
     fetch('/api/website-settings')
       .then((res) => res.json())
       .then((data) => {
@@ -233,35 +241,102 @@ export default function App() {
           localStorage.setItem('badri_website_settings', JSON.stringify(data.settings));
         }
       })
-      .catch((err) => {
-        console.error('Error fetching server website settings:', err);
-      });
+      .catch((err) => console.error('Error fetching server website settings:', err));
 
-    // Load FAQs
-    const savedFaqs = localStorage.getItem('badri_faqs_list');
-    if (savedFaqs) {
-      try {
-        setFaqs(JSON.parse(savedFaqs));
-      } catch (e) {
-        console.error('Error parsing FAQs:', e);
-      }
-    } else {
-      setFaqs(faqsData);
-      localStorage.setItem('badri_faqs_list', JSON.stringify(faqsData));
-    }
+    fetch('/api/brands')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && data.success) {
+          if (data.brands) {
+            setBrands(data.brands);
+            localStorage.setItem('badri_brands_data_v3', JSON.stringify(data.brands));
+          } else {
+            // Seed to server
+            fetch('/api/brands', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(loadedBrands)
+            }).catch(e => console.error('Error seeding brands:', e));
+          }
+        }
+      })
+      .catch((err) => console.error('Error fetching server brands:', err));
 
-    // Load customer reviews
-    const savedReviews = localStorage.getItem('badri_customer_reviews_v1');
-    if (savedReviews) {
-      try {
-        setReviews(JSON.parse(savedReviews));
-      } catch (e) {
-        console.error('Error parsing reviews:', e);
-      }
-    } else {
-      setReviews(INITIAL_REVIEWS);
-      localStorage.setItem('badri_customer_reviews_v1', JSON.stringify(INITIAL_REVIEWS));
-    }
+    fetch('/api/products')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && data.success) {
+          if (data.products) {
+            setProducts(data.products);
+            localStorage.setItem('badri_products_data_v3', JSON.stringify(data.products));
+          } else {
+            // Seed to server
+            fetch('/api/products', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(loadedProducts)
+            }).catch(e => console.error('Error seeding products:', e));
+          }
+        }
+      })
+      .catch((err) => console.error('Error fetching server products:', err));
+
+    fetch('/api/materials')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && data.success) {
+          if (data.materials) {
+            setMaterials(data.materials);
+            localStorage.setItem('badri_materials_list', JSON.stringify(data.materials));
+          } else {
+            // Seed to server
+            fetch('/api/materials', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(loadedMaterials)
+            }).catch(e => console.error('Error seeding materials:', e));
+          }
+        }
+      })
+      .catch((err) => console.error('Error fetching server materials:', err));
+
+    fetch('/api/faqs')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && data.success) {
+          if (data.faqs) {
+            setFaqs(data.faqs);
+            localStorage.setItem('badri_faqs_list', JSON.stringify(data.faqs));
+          } else {
+            // Seed to server
+            fetch('/api/faqs', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(loadedFaqs)
+            }).catch(e => console.error('Error seeding faqs:', e));
+          }
+        }
+      })
+      .catch((err) => console.error('Error fetching server faqs:', err));
+
+    fetch('/api/reviews')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && data.success) {
+          if (data.reviews) {
+            setReviews(data.reviews);
+            localStorage.setItem('badri_customer_reviews_v1', JSON.stringify(data.reviews));
+          } else {
+            // Seed to server
+            fetch('/api/reviews', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(loadedReviews)
+            }).catch(e => console.error('Error seeding reviews:', e));
+          }
+        }
+      })
+      .catch((err) => console.error('Error fetching server reviews:', err));
 
     // Welcomeness popup trigger
     const hasBeenWelcomed = localStorage.getItem('badri_welcomed_v2');
@@ -269,46 +344,61 @@ export default function App() {
       const enterTimer = setTimeout(() => {
         setIsLeadModalOpen(true);
         localStorage.setItem('badri_welcomed_v2', 'true');
-      }, 1500); // 1.5 second delay after loading
+      }, 1500);
       return () => clearTimeout(enterTimer);
     }
   }, []);
 
+  // Helpers to persist datasets to both local and server disk
+  const persistBrands = (updated: Brand[]) => {
+    setBrands(updated);
+    localStorage.setItem('badri_brands_data_v3', JSON.stringify(updated));
+    fetch('/api/brands', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updated)
+    }).catch((err) => console.error('Error saving brands to server:', err));
+  };
+
+  const persistProducts = (updated: Product[]) => {
+    setProducts(updated);
+    localStorage.setItem('badri_products_data_v3', JSON.stringify(updated));
+    fetch('/api/products', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updated)
+    }).catch((err) => console.error('Error saving products to server:', err));
+  };
+
   // Update a brand column card
   const handleUpdateBrand = (updatedBrand: Brand) => {
     const updated = brands.map(b => b.id === updatedBrand.id ? updatedBrand : b);
-    setBrands(updated);
-    localStorage.setItem('badri_brands_data_v3', JSON.stringify(updated));
+    persistBrands(updated);
   };
 
   // Reset to original brand listings
   const handleResetBrands = () => {
-    setBrands(brandsData);
-    localStorage.setItem('badri_brands_data_v3', JSON.stringify(brandsData));
+    persistBrands(brandsData);
   };
 
   // Custom products handlers
   const handleUpdateProduct = (updatedProduct: Product) => {
     const updated = products.map(p => p.id === updatedProduct.id ? updatedProduct : p);
-    setProducts(updated);
-    localStorage.setItem('badri_products_data_v3', JSON.stringify(updated));
+    persistProducts(updated);
   };
 
   const handleAddProduct = (newProduct: Product) => {
     const updated = [...products, newProduct];
-    setProducts(updated);
-    localStorage.setItem('badri_products_data_v3', JSON.stringify(updated));
+    persistProducts(updated);
   };
 
   const handleDeleteProduct = (id: string) => {
     const updated = products.filter(p => p.id !== id);
-    setProducts(updated);
-    localStorage.setItem('badri_products_data_v3', JSON.stringify(updated));
+    persistProducts(updated);
   };
 
   const handleResetProducts = () => {
-    setProducts(productsData);
-    localStorage.setItem('badri_products_data_v3', JSON.stringify(productsData));
+    persistProducts(productsData);
   };
 
   // Dynamic Content Handlers
@@ -316,12 +406,9 @@ export default function App() {
     setWebsiteSettings(updated);
     localStorage.setItem('badri_website_settings', JSON.stringify(updated));
 
-    // Persist to backend server so it is permanent and shared across sessions
     fetch('/api/website-settings', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updated),
     })
       .then((res) => res.json())
@@ -338,17 +425,32 @@ export default function App() {
   const handleUpdateFaqs = (updated: FAQ[]) => {
     setFaqs(updated);
     localStorage.setItem('badri_faqs_list', JSON.stringify(updated));
+    fetch('/api/faqs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updated)
+    }).catch(err => console.error('Error saving faqs to server:', err));
   };
 
   const handleUpdateReviews = (updated: Review[]) => {
     setReviews(updated);
     localStorage.setItem('badri_customer_reviews_v1', JSON.stringify(updated));
+    fetch('/api/reviews', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updated)
+    }).catch(err => console.error('Error saving reviews to server:', err));
   };
 
   // Materials handlers
   const handleUpdateMaterials = (updatedMaterials: Material[]) => {
     setMaterials(updatedMaterials);
     localStorage.setItem('badri_materials_list', JSON.stringify(updatedMaterials));
+    fetch('/api/materials', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updatedMaterials)
+    }).catch(err => console.error('Error saving materials to server:', err));
   };
 
   // Login log handlers

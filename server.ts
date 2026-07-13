@@ -423,6 +423,138 @@ app.post('/api/website-settings', (req, res) => {
   }
 });
 
+// === SERVER-SIDE PERSISTENT DISK STORAGE FOR DYNAMIC DATASETS ===
+const PRODUCTS_FILE_PATH = path.join(process.cwd(), 'products-settings.json');
+const BRANDS_FILE_PATH = path.join(process.cwd(), 'brands-settings.json');
+const MATERIALS_FILE_PATH = path.join(process.cwd(), 'materials-settings.json');
+const FAQS_FILE_PATH = path.join(process.cwd(), 'faqs-settings.json');
+const REVIEWS_FILE_PATH = path.join(process.cwd(), 'reviews-settings.json');
+
+app.get('/api/products', (req, res) => {
+  try {
+    if (fs.existsSync(PRODUCTS_FILE_PATH)) {
+      const data = fs.readFileSync(PRODUCTS_FILE_PATH, 'utf8');
+      return res.json({ success: true, products: JSON.parse(data) });
+    }
+    return res.json({ success: true, products: null });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message || 'Error fetching products' });
+  }
+});
+
+app.post('/api/products', (req, res) => {
+  try {
+    const products = req.body;
+    if (!Array.isArray(products)) {
+      return res.status(400).json({ error: 'Invalid products payload. Expected an array.' });
+    }
+    fs.writeFileSync(PRODUCTS_FILE_PATH, JSON.stringify(products, null, 2), 'utf8');
+    return res.json({ success: true, message: 'Products saved successfully.' });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message || 'Error saving products' });
+  }
+});
+
+app.get('/api/brands', (req, res) => {
+  try {
+    if (fs.existsSync(BRANDS_FILE_PATH)) {
+      const data = fs.readFileSync(BRANDS_FILE_PATH, 'utf8');
+      return res.json({ success: true, brands: JSON.parse(data) });
+    }
+    return res.json({ success: true, brands: null });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message || 'Error fetching brands' });
+  }
+});
+
+app.post('/api/brands', (req, res) => {
+  try {
+    const brands = req.body;
+    if (!Array.isArray(brands)) {
+      return res.status(400).json({ error: 'Invalid brands payload. Expected an array.' });
+    }
+    fs.writeFileSync(BRANDS_FILE_PATH, JSON.stringify(brands, null, 2), 'utf8');
+    return res.json({ success: true, message: 'Brands saved successfully.' });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message || 'Error saving brands' });
+  }
+});
+
+app.get('/api/materials', (req, res) => {
+  try {
+    if (fs.existsSync(MATERIALS_FILE_PATH)) {
+      const data = fs.readFileSync(MATERIALS_FILE_PATH, 'utf8');
+      return res.json({ success: true, materials: JSON.parse(data) });
+    }
+    return res.json({ success: true, materials: null });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message || 'Error fetching materials' });
+  }
+});
+
+app.post('/api/materials', (req, res) => {
+  try {
+    const materials = req.body;
+    if (!Array.isArray(materials)) {
+      return res.status(400).json({ error: 'Invalid materials payload. Expected an array.' });
+    }
+    fs.writeFileSync(MATERIALS_FILE_PATH, JSON.stringify(materials, null, 2), 'utf8');
+    return res.json({ success: true, message: 'Materials saved successfully.' });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message || 'Error saving materials' });
+  }
+});
+
+app.get('/api/faqs', (req, res) => {
+  try {
+    if (fs.existsSync(FAQS_FILE_PATH)) {
+      const data = fs.readFileSync(FAQS_FILE_PATH, 'utf8');
+      return res.json({ success: true, faqs: JSON.parse(data) });
+    }
+    return res.json({ success: true, faqs: null });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message || 'Error fetching faqs' });
+  }
+});
+
+app.post('/api/faqs', (req, res) => {
+  try {
+    const faqs = req.body;
+    if (!Array.isArray(faqs)) {
+      return res.status(400).json({ error: 'Invalid faqs payload. Expected an array.' });
+    }
+    fs.writeFileSync(FAQS_FILE_PATH, JSON.stringify(faqs, null, 2), 'utf8');
+    return res.json({ success: true, message: 'FAQs saved successfully.' });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message || 'Error saving faqs' });
+  }
+});
+
+app.get('/api/reviews', (req, res) => {
+  try {
+    if (fs.existsSync(REVIEWS_FILE_PATH)) {
+      const data = fs.readFileSync(REVIEWS_FILE_PATH, 'utf8');
+      return res.json({ success: true, reviews: JSON.parse(data) });
+    }
+    return res.json({ success: true, reviews: null });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message || 'Error fetching reviews' });
+  }
+});
+
+app.post('/api/reviews', (req, res) => {
+  try {
+    const reviews = req.body;
+    if (!Array.isArray(reviews)) {
+      return res.status(400).json({ error: 'Invalid reviews payload. Expected an array.' });
+    }
+    fs.writeFileSync(REVIEWS_FILE_PATH, JSON.stringify(reviews, null, 2), 'utf8');
+    return res.json({ success: true, message: 'Reviews saved successfully.' });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message || 'Error saving reviews' });
+  }
+});
+
 // API Route: Email Alert Trigger for Customer Leads Notify
 app.post('/api/notify-owner', async (req, res) => {
   try {
