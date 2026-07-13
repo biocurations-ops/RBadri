@@ -5,7 +5,7 @@ import {
   Trash2, Download, ShieldCheck, 
   Sparkles, CheckCircle2, RotateCcw, PlusCircle, LayoutGrid, Image as ImageIcon, 
   Check, Edit3, Key, History, LogOut, Plus, X, UploadCloud, ClipboardList,
-  Calendar, Tag, Smartphone, Video, FileSpreadsheet
+  Calendar, Tag, Smartphone, Video, FileSpreadsheet, ExternalLink
 } from 'lucide-react';
 import { Inquiry, InquiryStatus, Brand, Product, AdminLoginLog, Material, WebsiteSettings, FAQ, Review } from '../types';
 import { initialMaterials, defaultWebsiteSettings } from '../data';
@@ -329,16 +329,21 @@ export default function AdminPanel({
   const handleConnectSheets = async () => {
     setSheetSyncError('');
     setSheetSyncSuccess('');
+    setDriveSyncError('');
+    setDriveSyncSuccess('');
     try {
       const res = await googleSignIn();
       if (res) {
         setGoogleUser(res.user);
         setGoogleToken(res.accessToken);
         setSheetSyncSuccess('Successfully connected to Google Workspace!');
+        setDriveSyncSuccess('Successfully connected to Google Workspace!');
       }
     } catch (err: any) {
       console.error('Failed to sign in with Google:', err);
-      setSheetSyncError(err.message || 'Failed to sign in with Google');
+      const errMsg = err.message || 'Failed to sign in with Google';
+      setSheetSyncError(errMsg);
+      setDriveSyncError(errMsg);
     }
   };
 
@@ -1425,8 +1430,36 @@ export default function AdminPanel({
                     </div>
                   )}
                   {sheetSyncError && (
-                    <div className="rounded-xl bg-red-50 border border-red-100 p-3.5 text-xs font-semibold text-red-800 flex items-center gap-2">
-                      <span>⚠️ {sheetSyncError}</span>
+                    <div className="rounded-xl bg-red-50 border border-red-100 p-4 text-xs text-red-800 space-y-3">
+                      <div className="flex items-center gap-2 font-bold text-red-900">
+                        <span>⚠️ Sign In Blocked:</span>
+                        <span className="font-mono bg-red-100 px-1.5 py-0.5 rounded text-[11px]">{sheetSyncError}</span>
+                      </div>
+                      {sheetSyncError.toLowerCase().includes('popup') && (
+                        <div className="space-y-2 border-t border-red-200/50 pt-2.5">
+                          <p className="font-semibold text-red-900">
+                            The browser blocked the sign-in popup because this app is running inside a preview iframe.
+                          </p>
+                          <ul className="list-disc pl-4 space-y-1 text-red-700">
+                            <li>
+                              <strong>Option A (Recommended):</strong> Click the button below to open the application in a new tab, then try connecting there without iframe security constraints.
+                            </li>
+                            <li>
+                              <strong>Option B:</strong> Check your browser address bar's right corner for a blocked-popup icon (like 🔒 or 🗗), click it, and select "Always allow popups from this site".
+                            </li>
+                          </ul>
+                          <div className="pt-1">
+                            <button
+                              type="button"
+                              onClick={() => window.open(window.location.href, '_blank')}
+                              className="inline-flex items-center gap-1.5 rounded-lg bg-red-800 hover:bg-red-900 text-white px-3 py-1.5 text-[11px] font-bold transition shadow-xs cursor-pointer"
+                            >
+                              <ExternalLink className="h-3.5 w-3.5" />
+                              <span>Open App in New Tab</span>
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -2017,8 +2050,36 @@ export default function AdminPanel({
                     </div>
                   )}
                   {driveSyncError && (
-                    <div className="rounded-xl bg-red-50 border border-red-100 p-3.5 text-xs font-semibold text-red-800 flex items-center gap-2">
-                      <span>⚠️ {driveSyncError}</span>
+                    <div className="rounded-xl bg-red-50 border border-red-100 p-4 text-xs text-red-800 space-y-3">
+                      <div className="flex items-center gap-2 font-bold text-red-900">
+                        <span>⚠️ Sign In Blocked:</span>
+                        <span className="font-mono bg-red-100 px-1.5 py-0.5 rounded text-[11px]">{driveSyncError}</span>
+                      </div>
+                      {driveSyncError.toLowerCase().includes('popup') && (
+                        <div className="space-y-2 border-t border-red-200/50 pt-2.5">
+                          <p className="font-semibold text-red-900">
+                            The browser blocked the sign-in popup because this app is running inside a preview iframe.
+                          </p>
+                          <ul className="list-disc pl-4 space-y-1 text-red-700">
+                            <li>
+                              <strong>Option A (Recommended):</strong> Click the button below to open the application in a new tab, then try connecting there without iframe security constraints.
+                            </li>
+                            <li>
+                              <strong>Option B:</strong> Check your browser address bar's right corner for a blocked-popup icon (like 🔒 or 🗗), click it, and select "Always allow popups from this site".
+                            </li>
+                          </ul>
+                          <div className="pt-1">
+                            <button
+                              type="button"
+                              onClick={() => window.open(window.location.href, '_blank')}
+                              className="inline-flex items-center gap-1.5 rounded-lg bg-red-800 hover:bg-red-900 text-white px-3 py-1.5 text-[11px] font-bold transition shadow-xs cursor-pointer"
+                            >
+                              <ExternalLink className="h-3.5 w-3.5" />
+                              <span>Open App in New Tab</span>
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
