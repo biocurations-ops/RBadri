@@ -36,9 +36,10 @@ export default function App() {
   // Load inquiries and brand boxes from localStorage on mount
   useEffect(() => {
     const saved = localStorage.getItem('badri_inquiries_logs');
+    let loadedInquiries: Inquiry[] = [];
     if (saved) {
       try {
-        setInquiries(JSON.parse(saved));
+        loadedInquiries = JSON.parse(saved);
       } catch (e) {
         console.error('Error parsing stored inquiries:', e);
       }
@@ -68,9 +69,10 @@ export default function App() {
           internalNotes: 'Shared rates catalog on WhatsApp'
         }
       ];
-      setInquiries(starterLeads);
+      loadedInquiries = starterLeads;
       localStorage.setItem('badri_inquiries_logs', JSON.stringify(starterLeads));
     }
+    setInquiries(loadedInquiries);
 
     // Load brand box configurations
     const savedBrands = localStorage.getItem('badri_brands_data_v3');
@@ -338,6 +340,25 @@ export default function App() {
       })
       .catch((err) => console.error('Error fetching server reviews:', err));
 
+    fetch('/api/inquiries')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && data.success) {
+          if (data.inquiries) {
+            setInquiries(data.inquiries);
+            localStorage.setItem('badri_inquiries_logs', JSON.stringify(data.inquiries));
+          } else {
+            // Seed to server
+            fetch('/api/inquiries', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(loadedInquiries)
+            }).catch(e => console.error('Error seeding inquiries:', e));
+          }
+        }
+      })
+      .catch((err) => console.error('Error fetching server inquiries:', err));
+
     // Welcomeness popup trigger
     const hasBeenWelcomed = localStorage.getItem('badri_welcomed_v2');
     if (!hasBeenWelcomed) {
@@ -350,63 +371,69 @@ export default function App() {
   }, []);
 
   // Helpers to persist datasets to both local and server disk
-  const persistBrands = (updated: Brand[]) => {
+  const persistBrands = (updated: Brand[]): Promise<any> => {
     setBrands(updated);
     localStorage.setItem('badri_brands_data_v3', JSON.stringify(updated));
-    fetch('/api/brands', {
+    return fetch('/api/brands', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updated)
-    }).catch((err) => console.error('Error saving brands to server:', err));
+    }).catch((err) => {
+      console.error('Error saving brands to server:', err);
+      throw err;
+    });
   };
 
-  const persistProducts = (updated: Product[]) => {
+  const persistProducts = (updated: Product[]): Promise<any> => {
     setProducts(updated);
     localStorage.setItem('badri_products_data_v3', JSON.stringify(updated));
-    fetch('/api/products', {
+    return fetch('/api/products', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updated)
-    }).catch((err) => console.error('Error saving products to server:', err));
+    }).catch((err) => {
+      console.error('Error saving products to server:', err);
+      throw err;
+    });
   };
 
   // Update a brand column card
-  const handleUpdateBrand = (updatedBrand: Brand) => {
+  const handleUpdateBrand = (updatedBrand: Brand): Promise<any> => {
     const updated = brands.map(b => b.id === updatedBrand.id ? updatedBrand : b);
-    persistBrands(updated);
+    return persistBrands(updated);
   };
 
   // Reset to original brand listings
-  const handleResetBrands = () => {
-    persistBrands(brandsData);
+  const handleResetBrands = (): Promise<any> => {
+    return persistBrands(brandsData);
   };
 
   // Custom products handlers
-  const handleUpdateProduct = (updatedProduct: Product) => {
+  const handleUpdateProduct = (updatedProduct: Product): Promise<any> => {
     const updated = products.map(p => p.id === updatedProduct.id ? updatedProduct : p);
-    persistProducts(updated);
+    return persistProducts(updated);
   };
 
-  const handleAddProduct = (newProduct: Product) => {
+  const handleAddProduct = (newProduct: Product): Promise<any> => {
     const updated = [...products, newProduct];
-    persistProducts(updated);
+    return persistProducts(updated);
   };
 
-  const handleDeleteProduct = (id: string) => {
+  const handleDeleteProduct = (id: string): Promise<any> => {
     const updated = products.filter(p => p.id !== id);
-    persistProducts(updated);
+    return persistProducts(updated);
   };
 
-  const handleResetProducts = () => {
-    persistProducts(productsData);
+  const handleResetProducts = (): Promise<any> => {
+    return persistProducts(productsData);
   };
 
   // Dynamic Content Handlers
-  const handleUpdateWebsiteSettings = (updated: WebsiteSettings) => {
+  const handleUpdateWebsiteSettings = (updated: WebsiteSettings): Promise<any> => {
     setWebsiteSettings(updated);
     localStorage.setItem('badri_website_settings', JSON.stringify(updated));
 
-    fetch('/api/website-settings', {
+    return fetch('/api/website-settings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updated),
@@ -415,42 +442,72 @@ export default function App() {
       .then((data) => {
         if (!data.success) {
           console.error('Failed to save settings on server:', data.error);
+          throw new Error(data.error || 'Failed to save settings');
         }
+        return data;
       })
       .catch((err) => {
         console.error('Network error saving settings on server:', err);
+        throw err;
       });
   };
 
-  const handleUpdateFaqs = (updated: FAQ[]) => {
+  const handleUpdateFaqs = (updated: FAQ[]): Promise<any> => {
     setFaqs(updated);
     localStorage.setItem('badri_faqs_list', JSON.stringify(updated));
-    fetch('/api/faqs', {
+    return fetch('/api/faqs', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updated)
-    }).catch(err => console.error('Error saving faqs to server:', err));
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (!data.success) throw new Error(data.error || 'Failed to save FAQs');
+        return data;
+      })
+      .catch(err => {
+        console.error('Error saving faqs to server:', err);
+        throw err;
+      });
   };
 
-  const handleUpdateReviews = (updated: Review[]) => {
+  const handleUpdateReviews = (updated: Review[]): Promise<any> => {
     setReviews(updated);
     localStorage.setItem('badri_customer_reviews_v1', JSON.stringify(updated));
-    fetch('/api/reviews', {
+    return fetch('/api/reviews', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updated)
-    }).catch(err => console.error('Error saving reviews to server:', err));
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (!data.success) throw new Error(data.error || 'Failed to save Reviews');
+        return data;
+      })
+      .catch(err => {
+        console.error('Error saving reviews to server:', err);
+        throw err;
+      });
   };
 
   // Materials handlers
-  const handleUpdateMaterials = (updatedMaterials: Material[]) => {
+  const handleUpdateMaterials = (updatedMaterials: Material[]): Promise<any> => {
     setMaterials(updatedMaterials);
     localStorage.setItem('badri_materials_list', JSON.stringify(updatedMaterials));
-    fetch('/api/materials', {
+    return fetch('/api/materials', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updatedMaterials)
-    }).catch(err => console.error('Error saving materials to server:', err));
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (!data.success) throw new Error(data.error || 'Failed to save Materials');
+        return data;
+      })
+      .catch(err => {
+        console.error('Error saving materials to server:', err);
+        throw err;
+      });
   };
 
   // Login log handlers
@@ -471,10 +528,15 @@ export default function App() {
     localStorage.removeItem('badri_admin_login_logs');
   };
 
-  // Sync to localStorage on change
+  // Sync to localStorage and server on change
   const saveInquiries = (updatedList: Inquiry[]) => {
     setInquiries(updatedList);
     localStorage.setItem('badri_inquiries_logs', JSON.stringify(updatedList));
+    fetch('/api/inquiries', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updatedList)
+    }).catch(err => console.error('Error saving inquiries to server:', err));
   };
 
   // Capture Lead Submission

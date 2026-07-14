@@ -430,6 +430,32 @@ const BRANDS_FILE_PATH = path.join(process.cwd(), 'brands-settings.json');
 const MATERIALS_FILE_PATH = path.join(process.cwd(), 'materials-settings.json');
 const FAQS_FILE_PATH = path.join(process.cwd(), 'faqs-settings.json');
 const REVIEWS_FILE_PATH = path.join(process.cwd(), 'reviews-settings.json');
+const INQUIRIES_FILE_PATH = path.join(process.cwd(), 'inquiries-settings.json');
+
+app.get('/api/inquiries', (req, res) => {
+  try {
+    if (fs.existsSync(INQUIRIES_FILE_PATH)) {
+      const data = fs.readFileSync(INQUIRIES_FILE_PATH, 'utf8');
+      return res.json({ success: true, inquiries: JSON.parse(data) });
+    }
+    return res.json({ success: true, inquiries: null });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message || 'Error fetching inquiries' });
+  }
+});
+
+app.post('/api/inquiries', (req, res) => {
+  try {
+    const inquiries = req.body;
+    if (!Array.isArray(inquiries)) {
+      return res.status(400).json({ error: 'Invalid inquiries payload. Expected an array.' });
+    }
+    fs.writeFileSync(INQUIRIES_FILE_PATH, JSON.stringify(inquiries, null, 2), 'utf8');
+    return res.json({ success: true, message: 'Inquiries saved successfully.' });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message || 'Error saving inquiries' });
+  }
+});
 
 app.get('/api/products', (req, res) => {
   try {

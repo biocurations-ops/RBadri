@@ -23,15 +23,15 @@ interface AdminPanelProps {
   onClearAllLeads: () => void;
   
   brands: Brand[];
-  onUpdateBrand: (updatedBrand: Brand) => void;
-  onResetBrands: () => void;
+  onUpdateBrand: (updatedBrand: Brand) => Promise<any> | void;
+  onResetBrands: () => Promise<any> | void;
 
   // Dynamic products states
   products: Product[];
-  onUpdateProduct: (updatedProduct: Product) => void;
-  onAddProduct: (newProduct: Product) => void;
-  onDeleteProduct: (productId: string) => void;
-  onResetProducts: () => void;
+  onUpdateProduct: (updatedProduct: Product) => Promise<any> | void;
+  onAddProduct: (newProduct: Product) => Promise<any> | void;
+  onDeleteProduct: (productId: string) => Promise<any> | void;
+  onResetProducts: () => Promise<any> | void;
 
   // Admin login log states
   loginLogs: AdminLoginLog[];
@@ -39,15 +39,15 @@ interface AdminPanelProps {
   onClearLoginLogs: () => void;
 
   materials: Material[];
-  onUpdateMaterials: (materials: Material[]) => void;
+  onUpdateMaterials: (materials: Material[]) => Promise<any> | void;
 
   // Dynamic copy states
   websiteSettings: WebsiteSettings;
-  onUpdateWebsiteSettings: (settings: WebsiteSettings) => void;
+  onUpdateWebsiteSettings: (settings: WebsiteSettings) => Promise<any> | void;
   faqs: FAQ[];
-  onUpdateFaqs: (faqs: FAQ[]) => void;
+  onUpdateFaqs: (faqs: FAQ[]) => Promise<any> | void;
   reviews: Review[];
-  onUpdateReviews: (reviews: Review[]) => void;
+  onUpdateReviews: (reviews: Review[]) => Promise<any> | void;
 }
 
 export default function AdminPanel({
@@ -521,6 +521,33 @@ export default function AdminPanel({
     );
   };
 
+  // Active saving and feedback states for all form buttons
+  const [isSavingWebsite, setIsSavingWebsite] = useState(false);
+  const [websiteSaved, setWebsiteSaved] = useState(false);
+
+  const [savingBrandId, setSavingBrandId] = useState<string | null>(null);
+  const [savedBrandId, setSavedBrandId] = useState<string | null>(null);
+
+  const [isAddingProduct, setIsAddingProduct] = useState(false);
+  const [productAddedSuccess, setProductAddedSuccess] = useState(false);
+  const [savingProductId, setSavingProductId] = useState<string | null>(null);
+  const [savedProductId, setSavedProductId] = useState<string | null>(null);
+
+  const [isAddingMaterial, setIsAddingMaterial] = useState(false);
+  const [materialAddedSuccess, setMaterialAddedSuccess] = useState(false);
+  const [savingMaterialId, setSavingMaterialId] = useState<string | null>(null);
+  const [savedMaterialId, setSavedMaterialId] = useState<string | null>(null);
+
+  const [isAddingFaq, setIsAddingFaq] = useState(false);
+  const [faqAddedSuccess, setFaqAddedSuccess] = useState(false);
+  const [savingFaqIdx, setSavingFaqIdx] = useState<number | null>(null);
+  const [savedFaqIdx, setSavedFaqIdx] = useState<number | null>(null);
+
+  const [isAddingReview, setIsAddingReview] = useState(false);
+  const [reviewAddedSuccess, setReviewAddedSuccess] = useState(false);
+  const [savingReviewId, setSavingReviewId] = useState<string | null>(null);
+  const [savedReviewId, setSavedReviewId] = useState<string | null>(null);
+
   // SMS & Email Notification settings state
   const [ownerPhone, setOwnerPhone] = useState('');
   const [ownerEmail, setOwnerEmail] = useState('badrienterprises313@gmail.com');
@@ -650,11 +677,23 @@ export default function AdminPanel({
   };
 
   // Dynamic Website Settings & Content handlers
-  const handleSaveWebsiteSettings = (e: React.FormEvent) => {
+  const handleSaveWebsiteSettings = async (e: React.FormEvent) => {
     e.preventDefault();
-    onUpdateWebsiteSettings(settingsForm);
-    setSettingsSuccessMessage('Website custom settings and text copy updated successfully!');
-    setTimeout(() => setSettingsSuccessMessage(''), 4500);
+    setIsSavingWebsite(true);
+    setWebsiteSaved(false);
+    try {
+      await onUpdateWebsiteSettings(settingsForm);
+      setWebsiteSaved(true);
+      setSettingsSuccessMessage('Website custom settings and text copy updated successfully and deployed live!');
+      setTimeout(() => {
+        setWebsiteSaved(false);
+        setSettingsSuccessMessage('');
+      }, 4500);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSavingWebsite(false);
+    }
   };
 
   const handleResetWebsiteSettings = () => {
@@ -672,15 +711,25 @@ export default function AdminPanel({
   };
 
   // FAQs action handlers
-  const handleAddFaq = (e: React.FormEvent) => {
+  const handleAddFaq = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newFaqQuestion.trim() || !newFaqAnswer.trim()) return;
+    setIsAddingFaq(true);
+    setFaqAddedSuccess(false);
     const updated = [...faqs, { question: newFaqQuestion.trim(), answer: newFaqAnswer.trim() }];
-    onUpdateFaqs(updated);
-    setNewFaqQuestion('');
-    setNewFaqAnswer('');
-    setFaqSuccessMessage('New FAQ item added successfully!');
-    setTimeout(() => setFaqSuccessMessage(''), 4000);
+    try {
+      await onUpdateFaqs(updated);
+      setFaqAddedSuccess(true);
+      setTimeout(() => setFaqAddedSuccess(false), 3000);
+      setNewFaqQuestion('');
+      setNewFaqAnswer('');
+      setFaqSuccessMessage('New FAQ item added successfully!');
+      setTimeout(() => setFaqSuccessMessage(''), 4000);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsAddingFaq(false);
+    }
   };
 
   const handleStartEditFaq = (idx: number, faq: FAQ) => {
@@ -689,13 +738,23 @@ export default function AdminPanel({
     setFaqEditAnswer(faq.answer);
   };
 
-  const handleSaveEditFaq = (idx: number) => {
+  const handleSaveEditFaq = async (idx: number) => {
     if (!faqEditQuestion.trim() || !faqEditAnswer.trim()) return;
+    setSavingFaqIdx(idx);
+    setSavedFaqIdx(null);
     const updated = faqs.map((f, i) => i === idx ? { question: faqEditQuestion.trim(), answer: faqEditAnswer.trim() } : f);
-    onUpdateFaqs(updated);
-    setFaqEditIndex(null);
-    setFaqSuccessMessage('FAQ item updated successfully!');
-    setTimeout(() => setFaqSuccessMessage(''), 4000);
+    try {
+      await onUpdateFaqs(updated);
+      setSavedFaqIdx(idx);
+      setTimeout(() => setSavedFaqIdx(null), 2500);
+      setFaqEditIndex(null);
+      setFaqSuccessMessage('FAQ item updated successfully!');
+      setTimeout(() => setFaqSuccessMessage(''), 4000);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSavingFaqIdx(null);
+    }
   };
 
   const handleDeleteFaq = (idx: number) => {
@@ -706,9 +765,11 @@ export default function AdminPanel({
   };
 
   // Reviews action handlers
-  const handleAddReview = (e: React.FormEvent) => {
+  const handleAddReview = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newReviewName.trim() || !newReviewComment.trim()) return;
+    setIsAddingReview(true);
+    setReviewAddedSuccess(false);
     const freshReview: Review = {
       id: `rev-admin-${Date.now()}`,
       name: newReviewName.trim(),
@@ -720,13 +781,21 @@ export default function AdminPanel({
       isVerified: true
     };
     const updated = [freshReview, ...reviews];
-    onUpdateReviews(updated);
-    setNewReviewName('');
-    setNewReviewLocation('');
-    setNewReviewRating(5);
-    setNewReviewComment('');
-    setReviewSuccessMessage('Custom client review added successfully!');
-    setTimeout(() => setReviewSuccessMessage(''), 4000);
+    try {
+      await onUpdateReviews(updated);
+      setReviewAddedSuccess(true);
+      setTimeout(() => setReviewAddedSuccess(false), 3000);
+      setNewReviewName('');
+      setNewReviewLocation('');
+      setNewReviewRating(5);
+      setNewReviewComment('');
+      setReviewSuccessMessage('Custom client review added successfully!');
+      setTimeout(() => setReviewSuccessMessage(''), 4000);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsAddingReview(false);
+    }
   };
 
   const handleStartEditReview = (rev: Review) => {
@@ -737,8 +806,10 @@ export default function AdminPanel({
     setReviewEditComment(rev.comment);
   };
 
-  const handleSaveEditReview = (id: string) => {
+  const handleSaveEditReview = async (id: string) => {
     if (!reviewEditName.trim() || !reviewEditComment.trim()) return;
+    setSavingReviewId(id);
+    setSavedReviewId(null);
     const updated = reviews.map(r => r.id === id ? {
       ...r,
       name: reviewEditName.trim(),
@@ -746,10 +817,18 @@ export default function AdminPanel({
       rating: reviewEditRating,
       comment: reviewEditComment.trim()
     } : r);
-    onUpdateReviews(updated);
-    setReviewEditId(null);
-    setReviewSuccessMessage('Review updated successfully!');
-    setTimeout(() => setReviewSuccessMessage(''), 4000);
+    try {
+      await onUpdateReviews(updated);
+      setSavedReviewId(id);
+      setTimeout(() => setSavedReviewId(null), 2500);
+      setReviewEditId(null);
+      setReviewSuccessMessage('Review updated successfully!');
+      setTimeout(() => setReviewSuccessMessage(''), 4000);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSavingReviewId(null);
+    }
   };
 
   const handleDeleteReview = (id: string) => {
@@ -969,9 +1048,12 @@ export default function AdminPanel({
     reader.readAsDataURL(file);
   };
 
-  const handleSaveNewProduct = (e: React.FormEvent) => {
+  const handleSaveNewProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newProdTitle.trim()) return;
+
+    setIsAddingProduct(true);
+    setProductAddedSuccess(false);
 
     // parse features text line by line
     const features = newProdFeaturesText
@@ -1010,19 +1092,27 @@ export default function AdminPanel({
       videoName: newProdVideoName || undefined
     };
 
-    onAddProduct(newPrd);
+    try {
+      await onAddProduct(newPrd);
+      setProductAddedSuccess(true);
+      setTimeout(() => setProductAddedSuccess(false), 3000);
 
-    // Reset forms
-    setNewProdTitle('');
-    setNewProdCategory('Plywood');
-    setNewProdDesc('');
-    setNewProdLongDesc('');
-    setNewProdFeaturesText('');
-    setNewProdSpecsText('');
-    setNewProdImages([]);
-    setNewProdVideo('');
-    setNewProdVideoName('');
-    setIsAddingNewProduct(false);
+      // Reset forms
+      setNewProdTitle('');
+      setNewProdCategory('Plywood');
+      setNewProdDesc('');
+      setNewProdLongDesc('');
+      setNewProdFeaturesText('');
+      setNewProdSpecsText('');
+      setNewProdImages([]);
+      setNewProdVideo('');
+      setNewProdVideoName('');
+      setIsAddingNewProduct(false);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsAddingProduct(false);
+    }
   };
 
   const startEditProduct = (p: Product) => {
@@ -1051,9 +1141,12 @@ export default function AdminPanel({
     }
   };
 
-  const handleSaveProductEdit = (e: React.FormEvent) => {
+  const handleSaveProductEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!prodEditTitle.trim() || !editingProductId) return;
+
+    setSavingProductId(editingProductId);
+    setSavedProductId(null);
 
     const features = prodEditFeaturesText
       .split('\n')
@@ -1074,23 +1167,35 @@ export default function AdminPanel({
 
     const primaryImage = prodEditImages.length > 0 ? prodEditImages[0] : '';
 
-    onUpdateProduct({
-      id: editingProductId,
-      title: prodEditTitle.trim(),
-      category: prodEditCategory,
-      description: prodEditDesc.trim(),
-      longDescription: prodEditLongDesc.trim(),
-      image: primaryImage || 'https://images.unsplash.com/photo-1541123437800-1bb1317badc2?auto=format&fit=crop&q=80&w=800',
-      features,
-      specs: Object.keys(specs).length > 0 ? specs : undefined,
-      images: prodEditImages,
-      video: prodEditVideo || undefined,
-      videoName: prodEditVideoName || undefined
-    });
+    try {
+      await onUpdateProduct({
+        id: editingProductId,
+        title: prodEditTitle.trim(),
+        category: prodEditCategory,
+        description: prodEditDesc.trim(),
+        longDescription: prodEditLongDesc.trim(),
+        image: primaryImage || 'https://images.unsplash.com/photo-1541123437800-1bb1317badc2?auto=format&fit=crop&q=80&w=800',
+        features,
+        specs: Object.keys(specs).length > 0 ? specs : undefined,
+        images: prodEditImages,
+        video: prodEditVideo || undefined,
+        videoName: prodEditVideoName || undefined
+      });
 
-    setEditingProductId(null);
-    setProdEditVideo('');
-    setProdEditVideoName('');
+      setSavedProductId(editingProductId);
+      const tempId = editingProductId;
+      setTimeout(() => {
+        setSavedProductId(prev => prev === tempId ? null : prev);
+      }, 2500);
+
+      setEditingProductId(null);
+      setProdEditVideo('');
+      setProdEditVideoName('');
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSavingProductId(null);
+    }
   };
 
   // Materials active action managers
@@ -1123,7 +1228,7 @@ export default function AdminPanel({
     setMaterialError('');
   };
 
-  const handleSaveMaterialEdit = (id: string) => {
+  const handleSaveMaterialEdit = async (id: string) => {
     const name = editingMaterialName.trim();
     if (!name) return;
 
@@ -1133,11 +1238,22 @@ export default function AdminPanel({
       return;
     }
 
+    setSavingMaterialId(id);
+    setSavedMaterialId(null);
+
     const updated = materials.map(m => m.id === id ? { ...m, name } : m);
-    onUpdateMaterials(updated);
-    setEditingMaterialId(null);
-    setEditingMaterialName('');
-    setMaterialError('');
+    try {
+      await onUpdateMaterials(updated);
+      setSavedMaterialId(id);
+      setTimeout(() => setSavedMaterialId(null), 2500);
+      setEditingMaterialId(null);
+      setEditingMaterialName('');
+      setMaterialError('');
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSavingMaterialId(null);
+    }
   };
 
   const handleDeleteMaterial = (id: string) => {
@@ -2028,20 +2144,34 @@ export default function AdminPanel({
                       {isEditingBrand ? (
                         <>
                           <button
-                            onClick={() => {
-                              onUpdateBrand({
-                                id: brand.id,
-                                name: brandEditName,
-                                tagline: brandEditTagline,
-                                image: brandEditImage,
-                                logo: brandEditLogo
-                              });
-                              setEditingBrandId(null);
+                            disabled={savingBrandId === brand.id}
+                            onClick={async () => {
+                              setSavingBrandId(brand.id);
+                              try {
+                                await onUpdateBrand({
+                                  id: brand.id,
+                                  name: brandEditName,
+                                  tagline: brandEditTagline,
+                                  image: brandEditImage,
+                                  logo: brandEditLogo
+                                });
+                                setSavedBrandId(brand.id);
+                                setTimeout(() => setSavedBrandId(null), 2500);
+                                setEditingBrandId(null);
+                              } catch (err) {
+                                console.error(err);
+                              } finally {
+                                setSavingBrandId(null);
+                              }
                             }}
-                            className="flex-1 inline-flex justify-center items-center gap-1 bg-amber-500 hover:bg-amber-600 text-neutral-950 font-black text-xs py-2 rounded-lg transition shadow-xs cursor-pointer"
+                            className="flex-1 inline-flex justify-center items-center gap-1 bg-amber-500 hover:bg-amber-600 disabled:bg-amber-200 text-neutral-950 font-black text-xs py-2 rounded-lg transition shadow-xs cursor-pointer"
                           >
-                            <Check className="h-3.5 w-3.5" />
-                            <span>Save Box</span>
+                            {savingBrandId === brand.id ? (
+                              <span className="h-3 w-3 border-2 border-neutral-950 border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                              <Check className="h-3.5 w-3.5" />
+                            )}
+                            <span>{savingBrandId === brand.id ? 'Saving...' : 'Save Box'}</span>
                           </button>
                           
                           <button
@@ -2513,9 +2643,21 @@ export default function AdminPanel({
                     </button>
                     <button
                       type="submit"
-                      className="rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs py-2 px-5 transition shadow"
+                      disabled={isAddingProduct}
+                      className="rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs py-2 px-5 transition shadow flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
                     >
-                      Add &amp; Display product block
+                      {isAddingProduct ? (
+                        <span className="h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      ) : productAddedSuccess ? (
+                        <Check className="h-3.5 w-3.5 text-emerald-200" />
+                      ) : null}
+                      <span>
+                        {isAddingProduct 
+                          ? 'Adding Product...' 
+                          : productAddedSuccess 
+                            ? 'Product Added!' 
+                            : 'Add & Display product block'}
+                      </span>
                     </button>
                   </div>
                 </form>
@@ -2739,9 +2881,13 @@ export default function AdminPanel({
                           <div className="flex gap-2 pt-2 justify-end">
                             <button
                               type="submit"
-                              className="bg-amber-500 hover:bg-amber-600 text-neutral-950 px-4 py-2 rounded-lg font-black text-xs transition"
+                              disabled={savingProductId === p.id}
+                              className="bg-amber-500 hover:bg-amber-600 disabled:bg-amber-200 text-neutral-950 px-4 py-2 rounded-lg font-black text-xs transition flex items-center gap-1.5 cursor-pointer"
                             >
-                              Save Product Change
+                              {savingProductId === p.id ? (
+                                <span className="h-3 w-3 border-2 border-neutral-950 border-t-transparent rounded-full animate-spin" />
+                              ) : null}
+                              <span>{savingProductId === p.id ? 'Saving...' : 'Save Product Change'}</span>
                             </button>
                             <button
                               type="button"
@@ -2910,11 +3056,16 @@ export default function AdminPanel({
                                     />
                                     <button
                                       type="button"
+                                      disabled={savingMaterialId === mat.id}
                                       onClick={() => handleSaveMaterialEdit(mat.id)}
-                                      className="bg-emerald-600 hover:bg-emerald-700 text-white p-2 rounded-lg transition shrink-0 shadow-2xs cursor-pointer"
+                                      className="bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-300 text-white p-2 rounded-lg transition shrink-0 shadow-2xs cursor-pointer"
                                       title="Save edit"
                                     >
-                                      <Check className="h-3.5 w-3.5" />
+                                      {savingMaterialId === mat.id ? (
+                                        <span className="h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                      ) : (
+                                        <Check className="h-3.5 w-3.5" />
+                                      )}
                                     </button>
                                     <button
                                       type="button"
@@ -3411,10 +3562,23 @@ export default function AdminPanel({
                 </button>
                 <button
                   type="submit"
-                  className="flex items-center gap-2 bg-amber-600 hover:bg-amber-700 text-white font-extrabold py-3 px-8 rounded-lg text-xs tracking-wider uppercase shadow-md transition cursor-pointer"
+                  disabled={isSavingWebsite}
+                  className="flex items-center gap-2 bg-amber-600 hover:bg-amber-700 text-white font-extrabold py-3 px-8 rounded-lg text-xs tracking-wider uppercase shadow-md transition cursor-pointer disabled:opacity-50"
                 >
-                  <CheckCircle2 className="h-4.5 w-4.5" />
-                  <span>Save All Website Custom Copy</span>
+                  {isSavingWebsite ? (
+                    <span className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin animate-pulse" />
+                  ) : websiteSaved ? (
+                    <Check className="h-4 w-4 text-emerald-300 animate-bounce" />
+                  ) : (
+                    <CheckCircle2 className="h-4.5 w-4.5" />
+                  )}
+                  <span>
+                    {isSavingWebsite 
+                      ? 'Saving Website Copy...' 
+                      : websiteSaved 
+                        ? 'Website Custom Copy Saved!' 
+                        : 'Save All Website Custom Copy'}
+                  </span>
                 </button>
               </div>
             </form>
@@ -3469,10 +3633,17 @@ export default function AdminPanel({
                 <div className="flex justify-end">
                   <button
                     type="submit"
-                    className="flex items-center gap-2 bg-neutral-900 hover:bg-neutral-800 text-white font-bold py-2 px-5 rounded-lg text-xs tracking-wider uppercase shadow-xs transition cursor-pointer"
+                    disabled={isAddingFaq}
+                    className="flex items-center gap-2 bg-neutral-900 hover:bg-neutral-800 disabled:opacity-50 text-white font-bold py-2 px-5 rounded-lg text-xs tracking-wider uppercase shadow-xs transition cursor-pointer"
                   >
-                    <Plus className="h-4 w-4 text-teal-400" />
-                    <span>Add New FAQ</span>
+                    {isAddingFaq ? (
+                      <span className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : faqAddedSuccess ? (
+                      <Check className="h-4 w-4 text-emerald-400" />
+                    ) : (
+                      <Plus className="h-4 w-4 text-teal-400" />
+                    )}
+                    <span>{isAddingFaq ? 'Adding FAQ...' : faqAddedSuccess ? 'FAQ Added!' : 'Add New FAQ'}</span>
                   </button>
                 </div>
               </form>
@@ -3522,10 +3693,14 @@ export default function AdminPanel({
                             </button>
                             <button
                               type="button"
+                              disabled={savingFaqIdx === idx}
                               onClick={() => handleSaveEditFaq(idx)}
-                              className="px-3 py-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold"
+                              className="px-3 py-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-lg font-bold flex items-center gap-1 cursor-pointer"
                             >
-                              Save FAQ
+                              {savingFaqIdx === idx ? (
+                                <span className="h-3 w-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                              ) : null}
+                              <span>{savingFaqIdx === idx ? 'Saving...' : 'Save FAQ'}</span>
                             </button>
                           </div>
                         </div>
@@ -3642,10 +3817,17 @@ export default function AdminPanel({
                 <div className="flex justify-end">
                   <button
                     type="submit"
-                    className="flex items-center gap-2 bg-neutral-900 hover:bg-neutral-800 text-white font-bold py-2 px-5 rounded-lg text-xs tracking-wider uppercase shadow-xs transition cursor-pointer"
+                    disabled={isAddingReview}
+                    className="flex items-center gap-2 bg-neutral-900 hover:bg-neutral-800 disabled:opacity-50 text-white font-bold py-2 px-5 rounded-lg text-xs tracking-wider uppercase shadow-xs transition cursor-pointer"
                   >
-                    <Plus className="h-4 w-4 text-purple-400" />
-                    <span>Add New Review</span>
+                    {isAddingReview ? (
+                      <span className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : reviewAddedSuccess ? (
+                      <Check className="h-4 w-4 text-emerald-400 animate-bounce" />
+                    ) : (
+                      <Plus className="h-4 w-4 text-purple-400" />
+                    )}
+                    <span>{isAddingReview ? 'Adding Review...' : reviewAddedSuccess ? 'Review Added!' : 'Add New Review'}</span>
                   </button>
                 </div>
               </form>
@@ -3720,10 +3902,14 @@ export default function AdminPanel({
                             </button>
                             <button
                               type="button"
+                              disabled={savingReviewId === r.id}
                               onClick={() => handleSaveEditReview(r.id)}
-                              className="px-3 py-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold"
+                              className="px-3 py-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-lg font-bold flex items-center gap-1 cursor-pointer"
                             >
-                              Save Review
+                              {savingReviewId === r.id ? (
+                                <span className="h-3 w-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                              ) : null}
+                              <span>{savingReviewId === r.id ? 'Saving...' : 'Save Review'}</span>
                             </button>
                           </div>
                         </div>
