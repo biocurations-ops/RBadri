@@ -184,30 +184,44 @@ export default function AdminPanel({
 
     files.forEach(file => {
       const name = file.name.toLowerCase();
-      let matchedProductId = '';
+      let matchedId = '';
 
-      if (name.includes('marine') || name.includes('bwp') || name.includes('710')) {
-        matchedProductId = 'ply-bwp-gold';
+      if (name.includes('greenply')) {
+        matchedId = 'brand-1';
+      } else if (name.includes('century')) {
+        matchedId = 'brand-2';
+      } else if (name.includes('apple') || name.includes('ak ')) {
+        matchedId = 'brand-3';
+      } else if (name.includes('imfa')) {
+        matchedId = 'brand-4';
+      } else if (name.includes('wudgrip')) {
+        matchedId = 'brand-5';
+      } else if (name.includes('neem')) {
+        matchedId = 'brand-6';
+      } else if (name.includes('fevicol')) {
+        matchedId = 'brand-7';
+      } else if (name.includes('marine') || name.includes('bwp') || name.includes('710')) {
+        matchedId = 'ply-bwp-gold';
       } else if (name.includes('mr') || name.includes('commercial') || name.includes('303')) {
-        matchedProductId = 'ply-mr-silver';
+        matchedId = 'ply-mr-silver';
       } else if (name.includes('fire') || name.includes('retardant') || name.includes('5509')) {
-        matchedProductId = 'ply-fire-retardant';
+        matchedId = 'ply-fire-retardant';
       } else if (name.includes('pine') || name.includes('blockboard') || name.includes('1659') || name.includes('board')) {
-        matchedProductId = 'pine-board-premium';
+        matchedId = 'pine-board-premium';
       } else if (name.includes('flush') || name.includes('door') || name.includes('2202')) {
-        matchedProductId = 'door-flush-solid';
+        matchedId = 'door-flush-solid';
       } else if (name.includes('mdf')) {
-        matchedProductId = 'mdf-premium-density';
+        matchedId = 'mdf-premium-density';
       } else if (name.includes('hmr') && !name.includes('hdhmr')) {
-        matchedProductId = 'hmr-moisture-block';
+        matchedId = 'hmr-moisture-block';
       } else if (name.includes('hdhmr')) {
-        matchedProductId = 'hdhmr-supreme-grade';
+        matchedId = 'hdhmr-supreme-grade';
       } else if (name.includes('teak') || name.includes('veneer')) {
-        matchedProductId = 'veneer-teak-gold';
+        matchedId = 'veneer-teak-gold';
       }
 
-      if (matchedProductId) {
-        mappings[file.id] = matchedProductId;
+      if (matchedId) {
+        mappings[file.id] = matchedId;
         selected[file.id] = true;
       } else {
         mappings[file.id] = products[0]?.id || '';
@@ -231,7 +245,7 @@ export default function AdminPanel({
         setDriveSyncError('No files found in the Google Drive folder. Make sure files are added to the folder.');
       } else {
         autoMapFilesToProducts(files);
-        setDriveSyncSuccess(`Successfully loaded ${files.length} images from Google Drive! Review the mapped products and apply below.`);
+        setDriveSyncSuccess(`Successfully loaded ${files.length} images from Google Drive! Review the mapped items and apply below.`);
       }
     } catch (err: any) {
       console.error('Drive listing failed:', err);
@@ -253,25 +267,37 @@ export default function AdminPanel({
 
     let successCount = 0;
     selectedIds.forEach(fileId => {
-      const targetProductId = driveFileMappings[fileId];
+      const targetId = driveFileMappings[fileId];
       const file = driveFiles.find(f => f.id === fileId);
-      if (targetProductId && file) {
-        const product = products.find(p => p.id === targetProductId);
-        if (product) {
-          onUpdateProduct({
-            ...product,
-            image: file.imageUrl
-          });
-          successCount++;
+      if (targetId && file) {
+        if (targetId.startsWith('brand-')) {
+          const brand = brands.find(b => b.id === targetId);
+          if (brand) {
+            onUpdateBrand({
+              ...brand,
+              logo: file.imageUrl,
+              image: '' // Remove background image per request
+            });
+            successCount++;
+          }
+        } else {
+          const product = products.find(p => p.id === targetId);
+          if (product) {
+            onUpdateProduct({
+              ...product,
+              image: file.imageUrl
+            });
+            successCount++;
+          }
         }
       }
     });
 
     if (successCount > 0) {
-      setDriveSyncSuccess(`Successfully applied ${successCount} Google Drive images to the product showcase catalog!`);
+      setDriveSyncSuccess(`Successfully applied ${successCount} Google Drive images to the product showcase catalog / brands!`);
       setDriveFiles([]);
     } else {
-      setDriveSyncError('No products were updated.');
+      setDriveSyncError('No products or brands were updated.');
     }
   };
 
@@ -2314,7 +2340,7 @@ export default function AdminPanel({
                               {file.name}
                             </p>
                             <label className="block text-[10px] font-bold text-neutral-500 uppercase mt-2 mb-1">
-                              Assign to Product:
+                              Assign to Catalog / Brand:
                             </label>
                             <select
                               value={mappedProductId}
@@ -2326,9 +2352,16 @@ export default function AdminPanel({
                               }}
                               className="w-full text-xs bg-white border border-neutral-300 rounded-lg py-1 px-1.5 focus:border-blue-500 focus:outline-none"
                             >
-                              {products.map(p => (
-                                <option key={p.id} value={p.id}>{p.title}</option>
-                              ))}
+                              <optgroup label="Products">
+                                {products.map(p => (
+                                  <option key={p.id} value={p.id}>{p.title}</option>
+                                ))}
+                              </optgroup>
+                              <optgroup label="Brands">
+                                {brands.map(b => (
+                                  <option key={b.id} value={b.id}>{b.name} (Logo)</option>
+                                ))}
+                              </optgroup>
                             </select>
                           </div>
                         </div>

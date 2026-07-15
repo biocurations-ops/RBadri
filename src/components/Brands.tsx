@@ -106,22 +106,9 @@ export default function Brands({ brands }: BrandsProps) {
                 id={`brand-box-${brand.id}`}
               >
                 <div>
-                  {/* Image/Logo Box wrapper: Crisp Black Background with Box Background Image */}
+                  {/* Image/Logo Box wrapper: Crisp Black Background */}
                   <div className="relative aspect-square w-full bg-black border-b border-neutral-800 overflow-hidden flex items-center justify-center">
                     
-                    {/* Background box slot image */}
-                    {brand.image && (
-                      <img
-                        src={brand.image}
-                        alt=""
-                        className="absolute inset-0 w-full h-full object-cover opacity-25 group-hover:opacity-40 transition-opacity duration-300 pointer-events-none"
-                        referrerPolicy="no-referrer"
-                      />
-                    )}
-                    
-                    {/* Subtle vignette/contrast overlay */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-50 pointer-events-none" />
-
                     {/* Centered Brand Logo styled in a crisp square box */}
                     {brand.logo ? (
                       <div className="relative z-10 w-28 h-28 bg-white rounded-xl shadow-lg flex items-center justify-center p-3 border border-neutral-200/20 transition duration-300 transform group-hover:scale-105">
