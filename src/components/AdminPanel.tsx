@@ -172,6 +172,7 @@ export default function AdminPanel({
 
   // Google Drive Sync States
   const [isSyncingDrive, setIsSyncingDrive] = useState(false);
+  const [driveFolderId, setDriveFolderId] = useState('1-dXpbrBVQ8hCNbYLnwIdEcwU4Ouo3jNR');
   const [driveFiles, setDriveFiles] = useState<any[]>([]);
   const [driveSyncError, setDriveSyncError] = useState('');
   const [driveSyncSuccess, setDriveSyncSuccess] = useState('');
@@ -238,7 +239,7 @@ export default function AdminPanel({
     setDriveSyncError('');
     setDriveSyncSuccess('');
     try {
-      const folderId = '1kAGkfn3Y2nSgLPLRh-2r_JuxEHkIQIv0';
+      const folderId = driveFolderId.trim() || '1-dXpbrBVQ8hCNbYLnwIdEcwU4Ouo3jNR';
       const files = await fetchDriveFolderFiles(googleToken!, folderId);
       setDriveFiles(files);
       if (files.length === 0) {
@@ -2257,8 +2258,34 @@ export default function AdminPanel({
                       )}
                     </h3>
                     <p className="text-xs text-neutral-500 mt-1 leading-relaxed">
-                      Download and sync product showcase catalog images directly from your Google Drive folder: <a href="https://drive.google.com/drive/folders/1kAGkfn3Y2nSgLPLRh-2r_JuxEHkIQIv0" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-semibold">Open Folder</a>
+                      Download and sync images / logos directly from your Google Drive folder. Currently using: <a href={`https://drive.google.com/drive/folders/${driveFolderId}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-semibold">Open Active Folder</a>
                     </p>
+                    
+                    {/* Google Drive Folder Selector */}
+                    <div className="mt-3 flex flex-col sm:flex-row items-start sm:items-center gap-2 max-w-xl">
+                      <span className="text-[10px] font-black text-neutral-500 uppercase shrink-0">Select Folder:</span>
+                      <select
+                        value={driveFolderId === '1-dXpbrBVQ8hCNbYLnwIdEcwU4Ouo3jNR' || driveFolderId === '1kAGkfn3Y2nSgLPLRh-2r_JuxEHkIQIv0' ? driveFolderId : 'custom'}
+                        onChange={(e) => {
+                          if (e.target.value !== 'custom') {
+                            setDriveFolderId(e.target.value);
+                          }
+                        }}
+                        className="bg-neutral-50 border border-neutral-250 rounded-lg px-2 py-1 text-xs font-semibold text-neutral-700 focus:outline-none focus:border-blue-500 cursor-pointer"
+                      >
+                        <option value="1-dXpbrBVQ8hCNbYLnwIdEcwU4Ouo3jNR">Brand Logos (1-dXpbr...)</option>
+                        <option value="1kAGkfn3Y2nSgLPLRh-2r_JuxEHkIQIv0">Product Showcase (1kAGkf...)</option>
+                        <option value="custom">Custom Folder ID...</option>
+                      </select>
+                      <input
+                        type="text"
+                        value={driveFolderId}
+                        onChange={(e) => setDriveFolderId(e.target.value)}
+                        placeholder="Paste Google Drive folder ID here..."
+                        className="flex-1 w-full bg-neutral-50 border border-neutral-250 rounded-lg px-2.5 py-1 text-xs text-neutral-800 focus:outline-none focus:border-blue-500 font-mono"
+                        title="Google Drive Folder ID"
+                      />
+                    </div>
                   </div>
                 </div>
 
