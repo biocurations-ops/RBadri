@@ -370,7 +370,43 @@ export default function App() {
     }
   }, []);
 
-  // Helpers to persist datasets to both local and server disk
+  // Helpers to persist datasets to both local and server disk and trigger background auto-sync
+  const triggerGitHubAutoSync = () => {
+    const isAutoSync = localStorage.getItem('badri_github_autosync') === 'true';
+    const owner = localStorage.getItem('badri_github_owner') || 'biocurations';
+    const repo = localStorage.getItem('badri_github_repo');
+    const branch = localStorage.getItem('badri_github_branch') || 'main';
+    const token = localStorage.getItem('badri_github_token');
+
+    if (!isAutoSync || !owner || !repo || !token) {
+      return;
+    }
+
+    console.log('[AUTO-SYNC] Triggering background synchronization with GitHub...');
+    fetch('/api/github-sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        owner,
+        repo,
+        branch,
+        token,
+        commitMessage: `Auto-sync: Admin updates on ${new Date().toLocaleString()}`
+      })
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          console.log('[AUTO-SYNC] Completed successfully!');
+        } else {
+          console.warn('[AUTO-SYNC] Sync warning:', data.message);
+        }
+      })
+      .catch(err => {
+        console.error('[AUTO-SYNC] Failed to call sync endpoint:', err);
+      });
+  };
+
   const persistBrands = (updated: Brand[]): Promise<any> => {
     setBrands(updated);
     localStorage.setItem('badri_brands_data_v3', JSON.stringify(updated));
@@ -378,10 +414,16 @@ export default function App() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updated)
-    }).catch((err) => {
-      console.error('Error saving brands to server:', err);
-      throw err;
-    });
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        triggerGitHubAutoSync();
+        return data;
+      })
+      .catch((err) => {
+        console.error('Error saving brands to server:', err);
+        throw err;
+      });
   };
 
   const persistProducts = (updated: Product[]): Promise<any> => {
@@ -391,10 +433,16 @@ export default function App() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updated)
-    }).catch((err) => {
-      console.error('Error saving products to server:', err);
-      throw err;
-    });
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        triggerGitHubAutoSync();
+        return data;
+      })
+      .catch((err) => {
+        console.error('Error saving products to server:', err);
+        throw err;
+      });
   };
 
   // Update a brand column card
@@ -444,6 +492,7 @@ export default function App() {
           console.error('Failed to save settings on server:', data.error);
           throw new Error(data.error || 'Failed to save settings');
         }
+        triggerGitHubAutoSync();
         return data;
       })
       .catch((err) => {
@@ -463,6 +512,7 @@ export default function App() {
       .then((res) => res.json())
       .then((data) => {
         if (!data.success) throw new Error(data.error || 'Failed to save FAQs');
+        triggerGitHubAutoSync();
         return data;
       })
       .catch(err => {
@@ -482,6 +532,7 @@ export default function App() {
       .then((res) => res.json())
       .then((data) => {
         if (!data.success) throw new Error(data.error || 'Failed to save Reviews');
+        triggerGitHubAutoSync();
         return data;
       })
       .catch(err => {
@@ -502,6 +553,7 @@ export default function App() {
       .then((res) => res.json())
       .then((data) => {
         if (!data.success) throw new Error(data.error || 'Failed to save Materials');
+        triggerGitHubAutoSync();
         return data;
       })
       .catch(err => {

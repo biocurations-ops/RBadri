@@ -91,8 +91,18 @@ export default function AdminPanel({
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   // Primary active tab
-  const [activeTab, setActiveTab] = useState<'leads' | 'brands' | 'products' | 'materials' | 'logs' | 'sms' | 'website' | 'faqs' | 'reviews'>('leads');
+  const [activeTab, setActiveTab] = useState<'leads' | 'brands' | 'products' | 'materials' | 'logs' | 'sms' | 'website' | 'faqs' | 'reviews' | 'github'>('leads');
   const [filter, setFilter] = useState<InquiryStatus | 'All'>('All');
+
+  // GitHub Auto-Sync & Backup States
+  const [githubOwner, setGithubOwner] = useState(() => localStorage.getItem('badri_github_owner') || 'biocurations');
+  const [githubRepo, setGithubRepo] = useState(() => localStorage.getItem('badri_github_repo') || '');
+  const [githubBranch, setGithubBranch] = useState(() => localStorage.getItem('badri_github_branch') || 'main');
+  const [githubToken, setGithubToken] = useState(() => localStorage.getItem('badri_github_token') || '');
+  const [autoSyncEnabled, setAutoSyncEnabled] = useState(() => localStorage.getItem('badri_github_autosync') === 'true');
+  const [isSyncingGitHub, setIsSyncingGitHub] = useState(false);
+  const [githubSyncSuccess, setGithubSyncSuccess] = useState('');
+  const [githubSyncError, setGithubSyncError] = useState('');
 
   // Website Settings Form State
   const [settingsForm, setSettingsForm] = useState<WebsiteSettings>(websiteSettings);
@@ -127,6 +137,58 @@ export default function AdminPanel({
   const [newReviewRating, setNewReviewRating] = useState(5);
   const [newReviewComment, setNewReviewComment] = useState('');
   const [reviewSuccessMessage, setReviewSuccessMessage] = useState('');
+
+  // GitHub Auto-Sync & Backup Handlers
+  const handleSaveGitHubConfig = (e: React.FormEvent) => {
+    e.preventDefault();
+    localStorage.setItem('badri_github_owner', githubOwner);
+    localStorage.setItem('badri_github_repo', githubRepo);
+    localStorage.setItem('badri_github_branch', githubBranch);
+    localStorage.setItem('badri_github_token', githubToken);
+    localStorage.setItem('badri_github_autosync', autoSyncEnabled ? 'true' : 'false');
+    setGithubSyncSuccess('Configuration successfully saved and activated!');
+    setTimeout(() => setGithubSyncSuccess(''), 4000);
+  };
+
+  const handleManualGitHubSync = async () => {
+    setIsSyncingGitHub(true);
+    setGithubSyncSuccess('');
+    setGithubSyncError('');
+
+    // Pre-save inputs
+    localStorage.setItem('badri_github_owner', githubOwner);
+    localStorage.setItem('badri_github_repo', githubRepo);
+    localStorage.setItem('badri_github_branch', githubBranch);
+    localStorage.setItem('badri_github_token', githubToken);
+    localStorage.setItem('badri_github_autosync', autoSyncEnabled ? 'true' : 'false');
+
+    try {
+      const res = await fetch('/api/github-sync', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          owner: githubOwner,
+          repo: githubRepo,
+          branch: githubBranch,
+          token: githubToken,
+          commitMessage: `Manual sync: Badri Enterprises backup on ${new Date().toLocaleString()}`
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setGithubSyncSuccess('Manual sync completed successfully! Backed up all admin settings files on GitHub.');
+      } else {
+        setGithubSyncError(data.error || data.message || 'Failed to sync settings with GitHub.');
+      }
+    } catch (err: any) {
+      setGithubSyncError(err.message || 'Network error connecting to backend sync server.');
+    } finally {
+      setIsSyncingGitHub(false);
+    }
+  };
 
   // Iframe-safe non-native modal confirmation dialog state
   const [confirmState, setConfirmState] = useState<{
@@ -1587,6 +1649,18 @@ export default function AdminPanel({
           >
             <MessageSquare className="h-4 w-4 text-purple-500" />
             <span>Client Reviews ({reviews.length})</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('github')}
+            className={`px-5 py-3 font-bold text-xs uppercase tracking-wider flex items-center gap-2 border-b-2 transition ${
+              activeTab === 'github'
+                ? 'border-neutral-900 text-neutral-900 font-black'
+                : 'border-transparent text-neutral-400 hover:text-neutral-600'
+            }`}
+          >
+            <UploadCloud className="h-4 w-4 text-emerald-600 animate-pulse" />
+            <span>GitHub Sync & Backup</span>
           </button>
         </div>
 
@@ -4012,6 +4086,204 @@ export default function AdminPanel({
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* TAB 10: GITHUB CONTINUOUS SYNC & BACKUP */}
+        {activeTab === 'github' && (
+          <div className="mt-8 space-y-6 text-left">
+            <div className="bg-neutral-900 text-white rounded-xl p-6 border border-neutral-800 shadow-xl relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
+                <UploadCloud className="h-40 w-40 text-amber-400" />
+              </div>
+              <div className="relative z-10 max-w-2xl">
+                <span className="bg-amber-500/10 text-amber-400 text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full border border-amber-500/20">
+                  Continuous Deployment & Backup
+                </span>
+                <h3 className="font-serif text-2xl font-black text-white mt-3 leading-tight">
+                  GitHub & Hosting Server Auto-Sync
+                </h3>
+                <p className="text-xs text-neutral-300 mt-2 leading-relaxed">
+                  Keep your live website fully synchronized. Whenever you update brand boxes, products, FAQ listings, customer testimonials, or website headings in this Admin Panel, the server can automatically commit the updated JSON data straight to your GitHub repository.
+                </p>
+                <div className="mt-4 flex flex-wrap gap-2 text-[10px] font-mono text-neutral-400">
+                  <span className="bg-neutral-800 px-2 py-1 rounded border border-neutral-700">✓ brands-settings.json</span>
+                  <span className="bg-neutral-800 px-2 py-1 rounded border border-neutral-700">✓ products-settings.json</span>
+                  <span className="bg-neutral-800 px-2 py-1 rounded border border-neutral-700">✓ website-settings.json</span>
+                  <span className="bg-neutral-800 px-2 py-1 rounded border border-neutral-700">✓ faqs-settings.json</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* CONFIGURATION FORM */}
+              <div className="lg:col-span-2 bg-white rounded-xl border border-neutral-200 p-6 space-y-4 shadow-3xs">
+                <div className="border-b border-neutral-100 pb-3 flex justify-between items-center">
+                  <div>
+                    <h4 className="text-sm font-bold text-neutral-900">GitHub Repository Configuration</h4>
+                    <p className="text-[11px] text-neutral-500">Provide repository details to enable remote sync capabilities.</p>
+                  </div>
+                  <UploadCloud className="h-5 w-5 text-neutral-400" />
+                </div>
+
+                <form onSubmit={handleSaveGitHubConfig} className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-black text-neutral-500 mb-1.5 uppercase tracking-wider">GitHub Owner / Organization</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. biocurations"
+                        value={githubOwner}
+                        onChange={(e) => setGithubOwner(e.target.value)}
+                        className="w-full rounded-lg border border-neutral-200 p-2.5 text-xs text-neutral-900 font-bold outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black text-neutral-500 mb-1.5 uppercase tracking-wider">GitHub Repository Name</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. badri-enterprises"
+                        value={githubRepo}
+                        onChange={(e) => setGithubRepo(e.target.value)}
+                        className="w-full rounded-lg border border-neutral-200 p-2.5 text-xs text-neutral-900 font-bold outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-black text-neutral-500 mb-1.5 uppercase tracking-wider">Target Branch</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. main"
+                        value={githubBranch}
+                        onChange={(e) => setGithubBranch(e.target.value)}
+                        className="w-full rounded-lg border border-neutral-200 p-2.5 text-xs text-neutral-900 font-bold outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black text-neutral-500 mb-1.5 uppercase tracking-wider">GitHub Personal Access Token (Classic / Fine-grained)</label>
+                      <input
+                        type="password"
+                        required
+                        placeholder="ghp_xxxxxxxxxxxxxxxxxxxxxx"
+                        value={githubToken}
+                        onChange={(e) => setGithubToken(e.target.value)}
+                        className="w-full rounded-lg border border-neutral-200 p-2.5 text-xs text-neutral-900 font-bold outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="bg-neutral-50 rounded-lg p-4 border border-neutral-200 flex items-start gap-3">
+                    <input
+                      id="enable-auto-sync"
+                      type="checkbox"
+                      checked={autoSyncEnabled}
+                      onChange={(e) => setAutoSyncEnabled(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 text-amber-500 focus:ring-amber-500 border-neutral-300 rounded cursor-pointer"
+                    />
+                    <div>
+                      <label htmlFor="enable-auto-sync" className="block text-xs font-bold text-neutral-900 cursor-pointer">
+                        Enable Auto-Sync On Save / Updates
+                      </label>
+                      <p className="text-[11px] text-neutral-500 mt-0.5">
+                        Whenever any brand details, product item listings, materials listings, reviews, or FAQs are changed in this admin dashboard, the system will instantly push a backup revision directly to your GitHub repository.
+                      </p>
+                    </div>
+                  </div>
+
+                  {githubSyncSuccess && (
+                    <div className="bg-emerald-50 text-emerald-800 text-xs font-bold p-3.5 rounded-lg border border-emerald-100">
+                      ✓ {githubSyncSuccess}
+                    </div>
+                  )}
+
+                  {githubSyncError && (
+                    <div className="bg-red-50 text-red-800 text-xs font-bold p-3.5 rounded-lg border border-red-100">
+                      ✗ {githubSyncError}
+                    </div>
+                  )}
+
+                  <div className="flex gap-2 justify-end pt-2 border-t border-neutral-100">
+                    <button
+                      type="button"
+                      disabled={isSyncingGitHub || !githubOwner || !githubRepo || !githubToken}
+                      onClick={handleManualGitHubSync}
+                      className="inline-flex items-center gap-1.5 bg-neutral-900 hover:bg-neutral-800 disabled:bg-neutral-100 disabled:text-neutral-400 text-white font-bold text-xs px-4 py-2.5 rounded-lg transition cursor-pointer"
+                    >
+                      {isSyncingGitHub ? (
+                        <>
+                          <span className="h-3 w-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          <span>Syncing Now...</span>
+                        </>
+                      ) : (
+                        <>
+                          <RotateCcw className="h-3.5 w-3.5" />
+                          <span>Trigger Manual Backup Sync</span>
+                        </>
+                      )}
+                    </button>
+
+                    <button
+                      type="submit"
+                      className="inline-flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-neutral-950 font-black text-xs px-5 py-2.5 rounded-lg transition cursor-pointer"
+                    >
+                      <Check className="h-3.5 w-3.5" />
+                      <span>Save and Activate</span>
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+              {/* HOSTING DEPLOYMENT INSTRUCTIONS & DOCUMENTATION */}
+              <div className="bg-neutral-50 rounded-xl border border-neutral-200 p-6 space-y-4">
+                <h4 className="text-xs font-black uppercase tracking-wider text-neutral-500 border-b border-neutral-100 pb-2">
+                  Hosting & Web Server Sync
+                </h4>
+
+                <div className="space-y-4 text-xs">
+                  <div className="bg-white p-3.5 rounded-lg border border-neutral-200">
+                    <h5 className="font-bold text-neutral-900 flex items-center gap-1.5">
+                      <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                      <span>How to link Webhosting Server</span>
+                    </h5>
+                    <p className="text-[11px] text-neutral-600 mt-1.5 leading-relaxed">
+                      By keeping your GitHub repository in sync, your web hosting server can automatically rebuild and deploy on every update using a standard integration webhook.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2.5 text-left">
+                    <div className="flex gap-2">
+                      <div className="h-5 w-5 shrink-0 rounded-full bg-amber-100 text-amber-700 font-extrabold text-[10px] flex items-center justify-center">1</div>
+                      <p className="text-[11px] text-neutral-600">
+                        Create a free GitHub Repository (e.g. <code>{githubRepo || 'badri-enterprises'}</code>) and upload your code files.
+                      </p>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <div className="h-5 w-5 shrink-0 rounded-full bg-amber-100 text-amber-700 font-extrabold text-[10px] flex items-center justify-center">2</div>
+                      <p className="text-[11px] text-neutral-600">
+                        Connect your GitHub repo to your hosting provider (such as <strong>Netlify</strong>, <strong>Vercel</strong>, or <strong>GitHub Pages</strong>).
+                      </p>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <div className="h-5 w-5 shrink-0 rounded-full bg-amber-100 text-amber-700 font-extrabold text-[10px] flex items-center justify-center">3</div>
+                      <p className="text-[11px] text-neutral-600">
+                        Whenever you save admin changes, this panel commits the fresh settings to GitHub, which automatically triggers a production build on your hosting server instantly!
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="bg-amber-50 text-amber-900 p-3.5 rounded-lg border border-amber-100 text-[11px] leading-relaxed">
+                    <strong>Pro-tip:</strong> Classic tokens require <code>repo</code> scope permission. Fine-grained tokens require <code>Contents: Read & Write</code> scope permission on the target repository.
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         )}

@@ -812,6 +812,128 @@ app.post('/api/chat', async (req, res) => {
   }
 });
 
+// === GITHUB AUTO-SYNC UTILITY AND ENDPOINT ===
+async function syncFileToGitHub(
+  owner: string,
+  repo: string,
+  branch: string,
+  token: string,
+  filePath: string,
+  fileName: string,
+  commitMessage: string
+): Promise<{ success: boolean; message: string; error?: string }> {
+  try {
+    if (!fs.existsSync(filePath)) {
+      return { success: false, message: `File ${fileName} does not exist on disk` };
+    }
+    const fileContent = fs.readFileSync(filePath, 'utf8');
+    const base64Content = Buffer.from(fileContent).toString('base64');
+    const url = `https://api.github.com/repos/${owner}/${repo}/contents/${fileName}?ref=${branch}`;
+
+    // Get current file to check if it exists and get its SHA
+    let sha: string | null = null;
+    try {
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/vnd.github+json',
+          'User-Agent': 'BadriEnterprises-App',
+          'X-GitHub-Api-Version': '2022-11-28'
+        }
+      });
+      if (response.ok) {
+        const data = await response.json() as any;
+        sha = data.sha;
+      }
+    } catch (e) {
+      console.log(`File ${fileName} might not exist yet on GitHub, proceeding to create.`);
+    }
+
+    // Now, PUT the file
+    const putUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${fileName}`;
+    const body: any = {
+      message: commitMessage,
+      content: base64Content,
+      branch: branch
+    };
+    if (sha) {
+      body.sha = sha;
+    }
+
+    const putResponse = await fetch(putUrl, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/vnd.github+json',
+        'User-Agent': 'BadriEnterprises-App',
+        'X-GitHub-Api-Version': '2022-11-28',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    });
+
+    if (putResponse.ok) {
+      return { success: true, message: `Successfully synced ${fileName}` };
+    } else {
+      const errorText = await putResponse.text();
+      return { success: false, message: `Failed to sync ${fileName}`, error: errorText };
+    }
+  } catch (err: any) {
+    return { success: false, message: `Error syncing ${fileName}`, error: err.message };
+  }
+}
+
+app.post('/api/github-sync', async (req, res) => {
+  try {
+    const { owner, repo, branch, token, commitMessage } = req.body;
+    if (!owner || !repo || !token) {
+      return res.status(400).json({ error: 'Owner, Repo, and Token are required for GitHub sync.' });
+    }
+    const targetBranch = branch || 'main';
+    const msg = commitMessage || `Auto-sync: Admin panel updates`;
+
+    const filesToSync = [
+      { path: PRODUCTS_FILE_PATH, name: 'products-settings.json' },
+      { path: BRANDS_FILE_PATH, name: 'brands-settings.json' },
+      { path: MATERIALS_FILE_PATH, name: 'materials-settings.json' },
+      { path: FAQS_FILE_PATH, name: 'faqs-settings.json' },
+      { path: REVIEWS_FILE_PATH, name: 'reviews-settings.json' },
+      { path: WEBSITE_SETTINGS_FILE_PATH, name: 'website-settings.json' },
+      { path: INQUIRIES_FILE_PATH, name: 'inquiries-settings.json' }
+    ];
+
+    const results = [];
+    for (const file of filesToSync) {
+      if (fs.existsSync(file.path)) {
+        const result = await syncFileToGitHub(owner, repo, targetBranch, token, file.path, file.name, msg);
+        results.push({ file: file.name, ...result });
+      } else {
+        results.push({ file: file.name, success: false, message: 'File does not exist on local disk.' });
+      }
+    }
+
+    const failed = results.filter(r => !r.success);
+    if (failed.length > 0) {
+      return res.json({
+        success: false,
+        message: `Synced with some issues: ${results.filter(r => r.success).length} succeeded, ${failed.length} failed.`,
+        details: results
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: 'All settings files successfully committed and synced to GitHub!',
+      details: results
+    });
+
+  } catch (err: any) {
+    console.error('[GITHUB SYNC ERROR]', err);
+    return res.status(500).json({ error: err.message || 'Error occurred during GitHub synchronization.' });
+  }
+});
+
+
 // Serve frontend assets or mount Vite middleware
 async function startServer() {
   if (process.env.NODE_ENV !== 'production') {
